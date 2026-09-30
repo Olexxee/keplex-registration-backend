@@ -1,0 +1,252 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ────────────────────────────────────────────────────────────
+// Admin
+// ────────────────────────────────────────────────────────────
+
+model AdminUser {
+  id String @id @default(cuid())
+
+  name  String
+  email String @unique
+
+  passwordHash String
+
+  role   AdminRole @default(ADMIN)
+  active Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions AdminSession[]
+
+  @@index([role])
+  @@index([active])
+}
+
+model AdminSession {
+  id String @id @default(cuid())
+
+  adminUserId String
+
+  refreshTokenHash String @unique
+
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  adminUser AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
+// ────────────────────────────────────────────────────────────
+// Training programs
+// ────────────────────────────────────────────────────────────
+
+model TrainingProgram {
+  id String @id @default(cuid())
+
+  title            String
+  slug             String  @unique
+  shortDescription String?
+  description      String?
+
+  price    Decimal @db.Decimal(12, 2)
+  currency String  @default("NGN")
+
+  duration     String?
+  deliveryMode TrainingDeliveryMode @default(PHYSICAL)
+  location     String?
+
+  startDate            DateTime?
+  endDate              DateTime?
+  registrationDeadline DateTime?
+
+  capacity Int?
+
+  featured     Boolean @default(false)
+  active       Boolean @default(true)
+  displayOrder Int     @default(0)
+
+  highlights   Json?
+  curriculum   Json?
+  requirements Json?
+  benefits     Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  media         TrainingMedia[]
+  registrations Registration[]
+
+  @@index([active, displayOrder])
+  @@index([featured, displayOrder])
+  @@index([startDate])
+  @@index([registrationDeadline])
+}
+
+model TrainingMedia {
+  id String @id @default(cuid())
+
+  trainingProgramId String
+
+  url      String
+  publicId String
+  type     TrainingMediaType @default(IMAGE)
+
+  mimeType String?
+  format   String?
+  bytes    Int?
+  width    Int?
+  height   Int?
+  duration Float?
+
+  isPrimary Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainingProgram TrainingProgram @relation(fields: [trainingProgramId], references: [id], onDelete: Cascade)
+
+  @@index([trainingProgramId, sortOrder])
+  @@index([trainingProgramId, isPrimary])
+  @@index([type])
+}
+
+// ────────────────────────────────────────────────────────────
+// Registrations
+// ────────────────────────────────────────────────────────────
+
+model Registration {
+  id String @id @default(cuid())
+
+  name  String
+  email String
+
+  trainingProgramId String
+  status            RegistrationStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainingProgram TrainingProgram @relation(fields: [trainingProgramId], references: [id], onDelete: Restrict)
+
+  payments Payment[]
+
+  @@unique([trainingProgramId, email])
+  @@index([email])
+  @@index([status, createdAt])
+}
+
+// ────────────────────────────────────────────────────────────
+// Payments
+// ────────────────────────────────────────────────────────────
+
+model Payment {
+  id String @id @default(cuid())
+
+  registrationId String
+
+  provider          PaymentProvider @default(PAYSTACK)
+  reference         String          @unique
+  providerReference String?         @unique
+
+  amount   Decimal @db.Decimal(12, 2)
+  currency String  @default("NGN")
+
+  status PaymentStatus @default(PENDING)
+
+  authorizationUrl String?
+  accessCode       String?
+  providerPayload  Json?
+
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  @@index([registrationId])
+  @@index([status, createdAt])
+}
+
+// ────────────────────────────────────────────────────────────
+// Testimonials
+// ────────────────────────────────────────────────────────────
+
+model Testimonial {
+  id String @id @default(cuid())
+
+  name     String
+  role     String?
+  message  String
+  rating   Int
+  imageUrl String?
+
+  status TestimonialStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([rating])
+}
+
+
+
+// ────────────────────────────────────────────────────────────
+// Enums
+// ────────────────────────────────────────────────────────────
+
+enum AdminRole {
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum TrainingMediaType {
+  IMAGE
+  VIDEO
+}
+enum TestimonialStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TrainingDeliveryMode {
+  PHYSICAL
+  ONLINE
+  HYBRID
+}
+
+enum RegistrationStatus {
+  PENDING
+  PAID
+  CANCELLED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  ABANDONED
+  REVERSED
+}
+
+enum PaymentProvider {
+  PAYSTACK
+}
