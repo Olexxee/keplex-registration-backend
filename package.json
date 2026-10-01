@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "description": "Registration and training backend for Keplex",
   "type": "module",
-  "main": "dist/server.js",
+  "main": "server.js",
   "scripts": {
     "dev": "node --watch server.js",
     "start": "node server.js",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate": "prisma migrate deploy",
     "prisma:studio": "prisma studio"
   },
   "keywords": [],
