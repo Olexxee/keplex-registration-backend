@@ -22,12 +22,8 @@ export const updateTrainingProgram = async (id, data, tx = prisma) => {
 };
 
 export const deleteTrainingProgram = async (id, tx = prisma) => {
-  return tx.trainingProgram.update({
+  return tx.trainingProgram.delete({
     where: { id },
-    data: {
-      isDeleted: true,
-      active: false,
-    },
   });
 };
 
