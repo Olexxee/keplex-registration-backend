@@ -281,7 +281,7 @@ export const createGuestSouvenirOrder = async (data) => {
       colorSelections: order.colorSelections,
     },
     accessToken,
-    accessUrlPath: `/souvenirs/orders/access/${accessToken}`,
+    accessUrlPath: `/api/souvenirs/orders/access/${accessToken}`,
   };
 };
 
@@ -400,7 +400,7 @@ export const createGuestSouvenirEnquiry = async ({ data, files = [] }) => {
         createdAt: enquiry.createdAt,
       },
       accessToken,
-      accessUrlPath: `/souvenirs/enquiries/access/${accessToken}`,
+      accessUrlPath: `/api/souvenirs/enquiries/access/${accessToken}`,
     };
   } catch (error) {
     await Promise.all(uploadedAssets.map((asset) =>
