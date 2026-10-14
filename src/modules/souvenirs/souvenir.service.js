@@ -197,3 +197,249 @@ export const updateProductMedia = async (mediaId, data) => {
   }
   return souvenirDb.updateProductMedia(mediaId, data);
 };
+
+
+import crypto from "node:crypto";
+import { uploadMedia, deleteMedia } from "../../lib/cloudinaryMedia.js";
+
+const createGuestCredentials = (prefix) => {
+  const publicReference = `KPX-${prefix}-${Date.now()}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+  const accessToken = crypto.randomBytes(32).toString("hex");
+  const accessTokenHash = crypto.createHash("sha256").update(accessToken).digest("hex");
+  return { publicReference, accessToken, accessTokenHash };
+};
+
+const stripOrderSecrets = (order) => {
+  if (!order) return order;
+  const { accessTokenHash, ...safe } = order;
+  return safe;
+};
+const stripEnquirySecrets = (enquiry) => {
+  if (!enquiry) return enquiry;
+  const { accessTokenHash, ...safe } = enquiry;
+  return safe;
+};
+
+export const createGuestSouvenirOrder = async (data) => {
+  const product = await souvenirDb.findActiveProductForOrder(data.productId);
+  if (!product) throw new NotFoundError("Souvenir package is unavailable");
+
+  const tier = product.priceTiers.find((item) =>
+    data.quantity >= item.minQuantity &&
+    (item.maxQuantity == null || data.quantity <= item.maxQuantity)
+  );
+  if (!tier) {
+    throw new BadRequestError("The selected quantity does not match an available price package");
+  }
+  if (tier.currency !== "NGN") {
+    throw new BadRequestError("Only NGN souvenir orders are currently supported");
+  }
+
+  const colorSnapshots = await validateSelectedColorOptions(data.productId, data.colorOptionIds);
+  const { publicReference, accessToken, accessTokenHash } = createGuestCredentials("SOUV");
+
+  const order = await prisma.$transaction(async (tx) => {
+    const created = await souvenirDb.createSouvenirOrder({
+      publicReference,
+      accessTokenHash,
+      customerName: data.customerName,
+      customerEmail: data.customerEmail,
+      customerWhatsApp: data.customerWhatsApp,
+      productId: product.id,
+      priceTierId: tier.id,
+      productNameSnapshot: product.name,
+      priceTierLabelSnapshot: tier.label,
+      quantity: data.quantity,
+      totalPriceSnapshot: tier.totalPrice,
+      currency: tier.currency,
+      bookingTermsSnapshot: product.bookingTerms,
+      productionLeadTimeDaysSnapshot: product.productionLeadTimeDays,
+      customerNotes: data.customerNotes ?? null,
+      status: "SUBMITTED",
+    }, tx);
+
+    await souvenirDb.createSouvenirOrderColors(created.id, colorSnapshots.map((color) => {
+      const source = product.colorOptions.find((option) => option.id === color.colorOptionId);
+      return {
+        colorOptionId: color.colorOptionId,
+        nameSnapshot: color.nameSnapshot,
+        colorHexSnapshot: color.colorHexSnapshot,
+        swatchImageUrlSnapshot: source?.swatchImageUrl ?? null,
+      };
+    }), tx);
+
+    return souvenirDb.findSouvenirOrderById(created.id, tx);
+  });
+
+  return {
+    order: stripOrderSecrets(order),
+    accessToken,
+    accessUrlPath: `/souvenirs/orders/access/${accessToken}`,
+  };
+};
+
+export const getGuestSouvenirOrder = async (token) => {
+  const accessTokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const order = await souvenirDb.findOrderByTokenHash(accessTokenHash);
+  if (!order) throw new NotFoundError("Souvenir order not found");
+  return {
+    publicReference: order.publicReference,
+    customerName: order.customerName,
+    productName: order.productNameSnapshot,
+    quantity: order.quantity,
+    totalPrice: order.totalPriceSnapshot,
+    currency: order.currency,
+    status: order.status,
+    colors: order.colorSelections,
+    customerNotes: order.customerNotes,
+    createdAt: order.createdAt,
+    updatedAt: order.updatedAt,
+  };
+};
+
+const allowedOrderTransitions = {
+  SUBMITTED: ["AWAITING_PAYMENT", "PAID", "CANCELLED", "REJECTED"],
+  AWAITING_PAYMENT: ["PAID", "CANCELLED", "REJECTED"],
+  PAID: ["IN_PRODUCTION", "CANCELLED"],
+  IN_PRODUCTION: ["READY", "CANCELLED"],
+  READY: ["FULFILLED"],
+  FULFILLED: [],
+  CANCELLED: [],
+  REJECTED: [],
+};
+
+export const listAdminSouvenirOrders = async (query) => {
+  const allowed = ["SUBMITTED", "AWAITING_PAYMENT", "PAID", "IN_PRODUCTION", "READY", "FULFILLED", "CANCELLED", "REJECTED"];
+  if (query.status && !allowed.includes(query.status)) throw new BadRequestError("Invalid souvenir order status");
+  const [items, total] = await Promise.all([
+    souvenirDb.listSouvenirOrders(query),
+    souvenirDb.countSouvenirOrders(query.status ? { status: query.status } : {}),
+  ]);
+  return { items: items.map(stripOrderSecrets), pagination: { page: query.page, limit: query.limit, total } };
+};
+
+export const getAdminSouvenirOrder = async (id) => {
+  const order = await souvenirDb.findSouvenirOrderById(id);
+  if (!order) throw new NotFoundError("Souvenir order not found");
+  return stripOrderSecrets(order);
+};
+
+export const updateAdminSouvenirOrder = async (id, data) => {
+  const existing = await souvenirDb.findSouvenirOrderById(id);
+  if (!existing) throw new NotFoundError("Souvenir order not found");
+  if (data.status && data.status !== existing.status && !allowedOrderTransitions[existing.status].includes(data.status)) {
+    throw new ConflictError(`Cannot change a souvenir order from ${existing.status} to ${data.status}`);
+  }
+  const updated = await souvenirDb.updateSouvenirOrder(id, {
+    ...(data.status ? { status: data.status } : {}),
+    ...(data.adminNotes !== undefined ? { adminNotes: data.adminNotes } : {}),
+  });
+  return stripOrderSecrets(updated);
+};
+
+export const createGuestSouvenirEnquiry = async ({ data, files = [] }) => {
+  if (files.length > 10) throw new BadRequestError("A maximum of 10 reference files is allowed");
+  if (data.productId) {
+    const product = await souvenirDb.findActiveProductForOrder(data.productId);
+    if (!product) throw new NotFoundError("The selected souvenir package was not found");
+  }
+
+  const uploadedAssets = [];
+  try {
+    for (const file of files) {
+      const uploaded = await uploadMedia({
+        buffer: file.buffer,
+        mimeType: file.mimetype,
+        folder: "keplex/souvenirs/enquiries",
+      });
+      uploadedAssets.push({
+        url: uploaded.url,
+        publicId: uploaded.publicId,
+        resourceType: uploaded.resourceType,
+        mimeType: file.mimetype,
+        bytes: uploaded.bytes,
+        originalName: file.originalname?.slice(0, 255) ?? null,
+      });
+    }
+
+    const { publicReference, accessToken, accessTokenHash } = createGuestCredentials("ENQ");
+    const enquiry = await prisma.$transaction(async (tx) => {
+      const created = await souvenirDb.createSouvenirEnquiry({
+        publicReference,
+        accessTokenHash,
+        customerName: data.customerName,
+        customerEmail: data.customerEmail,
+        customerWhatsApp: data.customerWhatsApp,
+        productId: data.productId ?? null,
+        requestedQuantity: data.requestedQuantity ?? null,
+        designDescription: data.designDescription,
+        status: "NEW",
+      }, tx);
+
+      if (uploadedAssets.length) {
+        await souvenirDb.createSouvenirEnquiryMedia(
+          uploadedAssets.map((asset) => ({ ...asset, enquiryId: created.id })),
+          tx,
+        );
+      }
+      return souvenirDb.findSouvenirEnquiryById(created.id, tx);
+    });
+
+    return {
+      enquiry: stripEnquirySecrets(enquiry),
+      accessToken,
+      accessUrlPath: `/souvenirs/enquiries/access/${accessToken}`,
+    };
+  } catch (error) {
+    await Promise.all(uploadedAssets.map((asset) =>
+      deleteMedia({ publicId: asset.publicId, resourceType: asset.resourceType }).catch(() => {})
+    ));
+    throw error;
+  }
+};
+
+export const getGuestSouvenirEnquiry = async (token) => {
+  const accessTokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const enquiry = await souvenirDb.findEnquiryByTokenHash(accessTokenHash);
+  if (!enquiry) throw new NotFoundError("Souvenir enquiry not found");
+  return {
+    publicReference: enquiry.publicReference,
+    customerName: enquiry.customerName,
+    product: enquiry.product,
+    requestedQuantity: enquiry.requestedQuantity,
+    designDescription: enquiry.designDescription,
+    status: enquiry.status,
+    responseMessage: enquiry.responseMessage,
+    media: enquiry.media.map(({ url, mimeType, originalName, bytes }) => ({ url, mimeType, originalName, bytes })),
+    createdAt: enquiry.createdAt,
+    updatedAt: enquiry.updatedAt,
+  };
+};
+
+export const listAdminSouvenirEnquiries = async (query) => {
+  const allowed = ["NEW", "UNDER_REVIEW", "RESPONDED", "ACCEPTED", "DECLINED", "CLOSED"];
+  if (query.status && !allowed.includes(query.status)) throw new BadRequestError("Invalid souvenir enquiry status");
+  const [items, total] = await Promise.all([
+    souvenirDb.listSouvenirEnquiries(query),
+    souvenirDb.countSouvenirEnquiries(query.status ? { status: query.status } : {}),
+  ]);
+  return { items: items.map(stripEnquirySecrets), pagination: { page: query.page, limit: query.limit, total } };
+};
+
+export const getAdminSouvenirEnquiry = async (id) => {
+  const enquiry = await souvenirDb.findSouvenirEnquiryById(id);
+  if (!enquiry) throw new NotFoundError("Souvenir enquiry not found");
+  return stripEnquirySecrets(enquiry);
+};
+
+export const updateAdminSouvenirEnquiry = async (id, data) => {
+  const existing = await souvenirDb.findSouvenirEnquiryById(id);
+  if (!existing) throw new NotFoundError("Souvenir enquiry not found");
+  const update = { ...data };
+  if (data.status === "RESPONDED" || data.responseMessage) {
+    update.status = data.status ?? "RESPONDED";
+    update.respondedAt = new Date();
+  }
+  const updated = await souvenirDb.updateSouvenirEnquiry(id, update);
+  return stripEnquirySecrets(updated);
+};
