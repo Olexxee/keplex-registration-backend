@@ -53,6 +53,11 @@ export const listCertificates = asyncWrapper(async (req, res) => {
   return res.json({ success: true, data });
 });
 
+export const getCertificate = asyncWrapper(async (req, res) => {
+  const data = await service.getCertificate(req.validated.params.id);
+  return res.json({ success: true, data });
+});
+
 export const resendCertificate = asyncWrapper(async (req, res) => {
   const data = await service.resendCertificate(req.validated.params.id);
   return res.json({ success: true, message: "Certificate email sent.", data });
