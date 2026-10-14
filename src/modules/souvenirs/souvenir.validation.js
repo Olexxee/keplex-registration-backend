@@ -65,7 +65,7 @@ export const selectedColorOptionIdsSchema = z.array(z.string().trim().min(1))
 const guestContact = {
   customerName: z.string().trim().min(2).max(100),
   customerEmail: z.string().trim().email().max(254).transform((value) => value.toLowerCase()),
-  customerWhatsApp: z.string().trim().min(7).max(30).regex(/^\\+?[0-9 ()-]+$/, "Enter a valid WhatsApp number"),
+  customerWhatsApp: z.string().trim().min(7).max(30).regex(/^\+?[0-9 ()-]+$/, "Enter a valid WhatsApp number"),
 };
 
 export const createSouvenirOrderSchema = z.object({
