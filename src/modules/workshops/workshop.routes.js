@@ -26,6 +26,7 @@ router.post("/bookings", validateBody(createBookingSchema), controller.createGue
 router.get("/admin/bookings", ...admin, validateQuery(paginationQuerySchema), controller.listAdminBookings);
 router.patch("/admin/bookings/:id", ...admin, validateParams(idParamsSchema), validateBody(updateBookingSchema), controller.updateAdminBooking);
 
+router.get("/admin/offerings", ...admin, controller.listAdminOfferings);
 router.post("/admin/offerings", ...admin, validateBody(createOfferingSchema), controller.createAdminOffering);
 router.patch("/admin/offerings/:id", ...admin, validateParams(idParamsSchema), validateBody(updateOfferingSchema), controller.updateAdminOffering);
 router.patch("/admin/offerings/:id/status", ...admin, validateParams(idParamsSchema), validateBody(setActiveSchema), controller.setAdminOfferingActive);
