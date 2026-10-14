@@ -2,6 +2,8 @@ import slugify from "slugify";
 import { prisma } from "../../config/prisma.js";
 import * as souvenirDb from "./souvenir.db.js";
 import { BadRequestError, ConflictError, NotFoundError } from "../../classes/errorClasses.js";
+import crypto from "node:crypto";
+import { uploadMedia, deleteMedia } from "../../lib/cloudinaryMedia.js";
 
 const makeSlug = (value) => slugify(value, { lower: true, strict: true, trim: true });
 
@@ -198,9 +200,6 @@ export const updateProductMedia = async (mediaId, data) => {
   return souvenirDb.updateProductMedia(mediaId, data);
 };
 
-
-import crypto from "node:crypto";
-import { uploadMedia, deleteMedia } from "../../lib/cloudinaryMedia.js";
 
 const createGuestCredentials = (prefix) => {
   const publicReference = `KPX-${prefix}-${Date.now()}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
