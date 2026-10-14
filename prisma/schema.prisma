@@ -184,6 +184,274 @@ model Payment {
 }
 
 // ────────────────────────────────────────────────────────────
+// Souvenir catalogue
+// ────────────────────────────────────────────────────────────
+
+model SouvenirProduct {
+  id String @id @default(cuid())
+
+  name        String
+  slug        String  @unique
+  description String?
+  bookingTerms String?
+  productionLeadTimeDays Int?
+
+  active       Boolean @default(false)
+  featured     Boolean @default(false)
+  displayOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  media        SouvenirProductMedia[]
+  colorOptions SouvenirColorOption[]
+  priceTiers   SouvenirPriceTier[]
+  orders       SouvenirOrder[]
+  enquiries    SouvenirEnquiry[]
+
+  @@index([active, displayOrder])
+  @@index([featured, displayOrder])
+}
+
+model SouvenirProductMedia {
+  id String @id @default(cuid())
+
+  productId String
+  url       String
+  publicId  String
+  altText   String?
+  isPrimary Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product SouvenirProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, sortOrder])
+  @@index([productId, isPrimary])
+}
+
+model SouvenirColorOption {
+  id String @id @default(cuid())
+
+  productId String
+  name      String
+  colorHex  String  @db.VarChar(7)
+  swatchImageUrl String?
+  swatchPublicId String?
+  active    Boolean @default(true)
+  displayOrder Int  @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product SouvenirProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderSelections SouvenirOrderColor[]
+
+  @@unique([productId, name])
+  @@index([productId, active, displayOrder])
+}
+
+model SouvenirPriceTier {
+  id String @id @default(cuid())
+
+  productId String
+  label      String
+  minQuantity Int
+  maxQuantity Int?
+  totalPrice Decimal @db.Decimal(12, 2)
+  currency   String  @default("NGN")
+  active     Boolean @default(true)
+  displayOrder Int   @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product SouvenirProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, active, minQuantity])
+}
+
+
+// ────────────────────────────────────────────────────────────
+// Souvenir orders and custom-design enquiries
+// ────────────────────────────────────────────────────────────
+
+model SouvenirOrder {
+  id String @id @default(cuid())
+
+  publicReference String @unique
+  accessTokenHash String @unique
+
+  customerName     String
+  customerEmail    String
+  customerWhatsApp String
+
+  productId String
+  priceTierId String?
+
+  productNameSnapshot String
+  priceTierLabelSnapshot String
+  quantity Int
+  totalPriceSnapshot Decimal @db.Decimal(12, 2)
+  currency String @default("NGN")
+  bookingTermsSnapshot String?
+  productionLeadTimeDaysSnapshot Int?
+
+  status SouvenirOrderStatus @default(SUBMITTED)
+  customerNotes String?
+  adminNotes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product SouvenirProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
+  colorSelections SouvenirOrderColor[]
+
+  @@index([status, createdAt])
+  @@index([customerEmail])
+  @@index([customerWhatsApp])
+}
+
+model SouvenirOrderColor {
+  id String @id @default(cuid())
+
+  orderId String
+  colorOptionId String?
+
+  nameSnapshot String
+  colorHexSnapshot String
+  swatchImageUrlSnapshot String?
+  quantity Int?
+
+  createdAt DateTime @default(now())
+
+  order SouvenirOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  colorOption SouvenirColorOption? @relation(fields: [colorOptionId], references: [id], onDelete: SetNull)
+
+  @@unique([orderId, nameSnapshot])
+  @@index([orderId])
+}
+
+model SouvenirEnquiry {
+  id String @id @default(cuid())
+
+  publicReference String @unique
+  accessTokenHash String @unique
+
+  customerName     String
+  customerEmail    String
+  customerWhatsApp String
+
+  productId String?
+  requestedQuantity Int?
+  designDescription String
+  status SouvenirEnquiryStatus @default(NEW)
+
+  adminNotes String?
+  responseMessage String?
+  respondedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product SouvenirProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  media SouvenirEnquiryMedia[]
+  quotes SouvenirQuote[]
+
+  @@index([status, createdAt])
+  @@index([customerEmail])
+  @@index([customerWhatsApp])
+}
+
+model SouvenirEnquiryMedia {
+  id String @id @default(cuid())
+
+  enquiryId String
+  url String
+  publicId String
+  resourceType String @default("image")
+  mimeType String
+  bytes Int
+  originalName String?
+
+  createdAt DateTime @default(now())
+
+  enquiry SouvenirEnquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+
+  @@index([enquiryId, createdAt])
+}
+
+
+// ────────────────────────────────────────────────────────────
+// Custom souvenir quotations
+// ────────────────────────────────────────────────────────────
+
+model SouvenirQuote {
+  id String @id @default(cuid())
+
+  enquiryId String
+  version Int
+  status SouvenirQuoteStatus @default(DRAFT)
+
+  currency String @default("NGN")
+  totalAmount Decimal @db.Decimal(12, 2)
+  terms String?
+  message String?
+  expiresAt DateTime?
+  sentAt DateTime?
+  respondedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enquiry SouvenirEnquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  items SouvenirQuoteItem[]
+  media SouvenirQuoteMedia[]
+
+  @@unique([enquiryId, version])
+  @@index([enquiryId, status, createdAt])
+  @@index([status, expiresAt])
+}
+
+model SouvenirQuoteItem {
+  id String @id @default(cuid())
+
+  quoteId String
+  name String
+  description String?
+  quantity Int
+  unitPrice Decimal @db.Decimal(12, 2)
+  lineTotal Decimal @db.Decimal(12, 2)
+  displayOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  quote SouvenirQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId, displayOrder])
+}
+
+model SouvenirQuoteMedia {
+  id String @id @default(cuid())
+
+  quoteId String
+  url String
+  publicId String
+  resourceType String @default("image")
+  mimeType String
+  bytes Int
+  originalName String?
+
+  createdAt DateTime @default(now())
+
+  quote SouvenirQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId, createdAt])
+}
+
+// ────────────────────────────────────────────────────────────
 // Testimonials
 // ────────────────────────────────────────────────────────────
 
@@ -206,6 +474,93 @@ model Testimonial {
 }
 
 
+
+// ────────────────────────────────────────────────────────────
+// Creative workshops and event bookings
+// ────────────────────────────────────────────────────────────
+
+model WorkshopOffering {
+  id String @id @default(cuid())
+
+  title String
+  slug String @unique
+  workshopType WorkshopType
+  description String
+  bookingTerms String?
+  contactEmail String?
+  contactWhatsApp String?
+  active Boolean @default(false)
+  featured Boolean @default(false)
+  displayOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  participantTiers WorkshopParticipantTier[]
+  bookings WorkshopBooking[]
+
+  @@index([active, displayOrder])
+  @@index([featured, displayOrder])
+}
+
+model WorkshopParticipantTier {
+  id String @id @default(cuid())
+
+  offeringId String
+  label String
+  participantCount Int
+  price Decimal @db.Decimal(12, 2)
+  currency String @default("NGN")
+  active Boolean @default(true)
+  displayOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  offering WorkshopOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  bookings WorkshopBooking[]
+
+  @@unique([offeringId, participantCount])
+  @@index([offeringId, active, participantCount])
+}
+
+model WorkshopBooking {
+  id String @id @default(cuid())
+
+  publicReference String @unique
+  customerName String
+  customerEmail String
+  customerWhatsApp String
+
+  offeringId String
+  participantTierId String?
+  workshopTitleSnapshot String
+  workshopType WorkshopType
+  participantCount Int
+  priceSnapshot Decimal? @db.Decimal(12, 2)
+  currency String @default("NGN")
+
+  eventDate DateTime
+  venueMode WorkshopVenueMode
+  venueAddress String?
+  city String?
+  customWorkshopDescription String?
+  customerNotes String?
+
+  status WorkshopBookingStatus @default(NEW)
+  adminNotes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  offering WorkshopOffering @relation(fields: [offeringId], references: [id], onDelete: Restrict)
+  participantTier WorkshopParticipantTier? @relation(fields: [participantTierId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([eventDate])
+  @@index([customerEmail])
+  @@index([customerWhatsApp])
+}
 
 // ────────────────────────────────────────────────────────────
 // Enums
@@ -249,4 +604,57 @@ enum PaymentStatus {
 
 enum PaymentProvider {
   PAYSTACK
+}
+
+enum SouvenirOrderStatus {
+  SUBMITTED
+  AWAITING_PAYMENT
+  PAID
+  IN_PRODUCTION
+  READY
+  FULFILLED
+  CANCELLED
+  REJECTED
+}
+
+enum SouvenirEnquiryStatus {
+  NEW
+  UNDER_REVIEW
+  RESPONDED
+  ACCEPTED
+  DECLINED
+  CLOSED
+}
+
+enum SouvenirQuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  SUPERSEDED
+}
+
+
+enum WorkshopType {
+  RESIN_ART
+  LIP_CARE_FORMULATION
+  CUSTOM_GROUP
+}
+
+enum WorkshopVenueMode {
+  CLIENT_VENUE
+  KPX_VENUE
+  UNDECIDED
+}
+
+enum WorkshopBookingStatus {
+  NEW
+  UNDER_REVIEW
+  PROPOSAL_SENT
+  ACCEPTED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
