@@ -87,6 +87,12 @@ router.get(
   validateQuery(listCertificatesQuerySchema),
   controller.listCertificates,
 );
+router.get(
+  "/admin/:id",
+  ...admin,
+  validateParams(certificateIdSchema),
+  controller.getCertificate,
+);
 router.post(
   "/admin/:id/resend",
   ...admin,
