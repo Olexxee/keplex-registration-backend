@@ -90,6 +90,8 @@ model TrainingProgram {
 
   media         TrainingMedia[]
   registrations Registration[]
+  certificateSubmissions CertificateSubmission[]
+  certificates Certificate[]
 
   @@index([active, displayOrder])
   @@index([featured, displayOrder])
