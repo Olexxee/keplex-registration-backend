@@ -36,3 +36,16 @@ const upload = multer({
 export const uploadSingleMedia = upload.single("media");
 
 export const uploadMultipleMedia = upload.array("media", 10);
+
+
+// Smaller bounded upload policy for customer-submitted reference media.
+const referenceUpload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+    files: 10,
+  },
+});
+
+export const uploadMultipleReferenceMedia = referenceUpload.array("media", 10);
