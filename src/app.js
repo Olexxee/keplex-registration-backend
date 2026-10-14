@@ -8,6 +8,7 @@ import paymentRouter from "./modules/payment/payment.routes.js";
 import authRouter from "./modules/auth/auth.route.js";
 import registrationRouter from "./modules/registration/registration.routes.js";
 import testimonialRouter from "./modules/testimonials/testimonial.routes.js";
+import souvenirRouter from "./modules/souvenirs/souvenir.routes.js";
 import {globalRateLimiter} from "./middlewares/rateLimitMiddleware.js"
 import { errorMiddleware } from "./middlewares/errorMiddleware.js";
 
@@ -93,6 +94,7 @@ app.use("/api/training", trainingRouter);
 app.use("/api/training", trainingMediaRouter);
 app.use("/api/registrations", registrationRouter);
 app.use("/api/testimonial", testimonialRouter);
+app.use("/api/souvenirs", souvenirRouter);
 app.use("/api/payments", paymentRouter);
 
 // ============================================================
