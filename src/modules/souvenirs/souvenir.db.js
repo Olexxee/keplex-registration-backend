@@ -72,3 +72,98 @@ export const findActiveColorOptionsByIds = (productId, ids, tx = prisma) =>
     where: { productId, id: { in: ids }, active: true },
     select: { id: true, name: true, colorHex: true },
   });
+
+
+const orderInclude = {
+  colorSelections: { orderBy: { createdAt: "asc" } },
+};
+
+const enquiryInclude = {
+  media: { orderBy: { createdAt: "asc" } },
+  product: { select: { id: true, name: true, slug: true } },
+};
+
+export const findActiveProductForOrder = (id, tx = prisma) =>
+  tx.souvenirProduct.findFirst({
+    where: { id, active: true },
+    include: {
+      colorOptions: { where: { active: true } },
+      priceTiers: { where: { active: true } },
+    },
+  });
+
+export const createSouvenirOrder = (data, tx = prisma) =>
+  tx.souvenirOrder.create({ data, include: orderInclude });
+
+export const createSouvenirOrderColors = (orderId, colors, tx = prisma) =>
+  tx.souvenirOrderColor.createMany({
+    data: colors.map((color) => ({ ...color, orderId })),
+  });
+
+export const findOrderByTokenHash = (accessTokenHash, tx = prisma) =>
+  tx.souvenirOrder.findUnique({
+    where: { accessTokenHash },
+    include: { ...orderInclude, product: { select: { name: true, slug: true } } },
+  });
+
+export const listSouvenirOrders = ({ status, page = 1, limit = 20 } = {}, tx = prisma) =>
+  tx.souvenirOrder.findMany({
+    where: status ? { status } : {},
+    orderBy: { createdAt: "desc" },
+    skip: (page - 1) * limit,
+    take: limit,
+    include: { ...orderInclude, product: { select: { id: true, name: true, slug: true } } },
+  });
+
+export const countSouvenirOrders = (where = {}, tx = prisma) =>
+  tx.souvenirOrder.count({ where });
+
+export const findSouvenirOrderById = (id, tx = prisma) =>
+  tx.souvenirOrder.findUnique({
+    where: { id },
+    include: { ...orderInclude, product: { select: { id: true, name: true, slug: true } } },
+  });
+
+export const updateSouvenirOrder = (id, data, tx = prisma) =>
+  tx.souvenirOrder.update({
+    where: { id },
+    data,
+    include: { ...orderInclude, product: { select: { id: true, name: true, slug: true } } },
+  });
+
+export const createSouvenirEnquiry = (data, tx = prisma) =>
+  tx.souvenirEnquiry.create({ data, include: enquiryInclude });
+
+export const createSouvenirEnquiryMedia = (data, tx = prisma) =>
+  tx.souvenirEnquiryMedia.createMany({ data });
+
+export const findEnquiryByTokenHash = (accessTokenHash, tx = prisma) =>
+  tx.souvenirEnquiry.findUnique({
+    where: { accessTokenHash },
+    include: enquiryInclude,
+  });
+
+export const listSouvenirEnquiries = ({ status, page = 1, limit = 20 } = {}, tx = prisma) =>
+  tx.souvenirEnquiry.findMany({
+    where: status ? { status } : {},
+    orderBy: { createdAt: "desc" },
+    skip: (page - 1) * limit,
+    take: limit,
+    include: enquiryInclude,
+  });
+
+export const countSouvenirEnquiries = (where = {}, tx = prisma) =>
+  tx.souvenirEnquiry.count({ where });
+
+export const findSouvenirEnquiryById = (id, tx = prisma) =>
+  tx.souvenirEnquiry.findUnique({
+    where: { id },
+    include: enquiryInclude,
+  });
+
+export const updateSouvenirEnquiry = (id, data, tx = prisma) =>
+  tx.souvenirEnquiry.update({
+    where: { id },
+    data,
+    include: enquiryInclude,
+  });
