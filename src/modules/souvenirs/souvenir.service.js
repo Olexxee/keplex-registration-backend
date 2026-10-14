@@ -73,6 +73,24 @@ export const setProductActive = async (id, active) => {
   return souvenirDb.updateProduct(id, { active });
 };
 
+export const validateSelectedColorOptions = async (productId, colorOptionIds) => {
+  if (!Array.isArray(colorOptionIds) || colorOptionIds.length < 1 || colorOptionIds.length > 3) {
+    throw new BadRequestError("Select between one and three colours");
+  }
+  if (new Set(colorOptionIds).size !== colorOptionIds.length) {
+    throw new BadRequestError("Selected colours must be unique");
+  }
+  const colors = await souvenirDb.findActiveColorOptionsByIds(productId, colorOptionIds);
+  if (colors.length !== colorOptionIds.length) {
+    throw new BadRequestError("Every selected colour must be active and belong to the selected souvenir");
+  }
+  return colors.map((color) => ({
+    colorOptionId: color.id,
+    nameSnapshot: color.name,
+    colorHexSnapshot: color.colorHex,
+  }));
+};
+
 export const createColorOption = async (productId, data) => {
   await requireProduct(productId);
   try {
