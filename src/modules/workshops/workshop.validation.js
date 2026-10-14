@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-const workshopTypes = ["RESIN_ART", "LIP_CARE_FORMULATION", "CUSTOM_GROUP"];
-const venueModes = ["CLIENT_VENUE", "KPX_VENUE", "UNDECIDED"];
-const bookingStatuses = ["NEW", "UNDER_REVIEW", "PROPOSAL_SENT", "ACCEPTED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED"];
+const workshopTypes = ["RESIN_ART", "LIP_CARE_FORMULATION", "CUSTOM_GROUP"] as const;
+const venueModes = ["CLIENT_VENUE", "KPX_VENUE", "UNDECIDED"] as const;
+const bookingStatuses = ["NEW", "UNDER_REVIEW", "PROPOSAL_SENT", "ACCEPTED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as const;
 
 export const idParamsSchema = z.object({ id: z.string().trim().min(1) });
 export const tierParamsSchema = z.object({ tierId: z.string().trim().min(1) });
