@@ -425,6 +425,24 @@ export const getGuestSouvenirEnquiry = async (token) => {
     status: enquiry.status,
     responseMessage: enquiry.responseMessage,
     media: enquiry.media.map(({ url, mimeType, originalName, bytes }) => ({ url, mimeType, originalName, bytes })),
+    latestQuote: enquiry.quotes
+      .filter((quote) => ["SENT", "ACCEPTED", "DECLINED", "EXPIRED"].includes(quote.status))
+      .sort((a, b) => b.version - a.version)
+      .slice(0, 1)
+      .map((quote) => ({
+        id: quote.id,
+        version: quote.version,
+        status: quote.status,
+        currency: quote.currency,
+        totalAmount: quote.totalAmount,
+        terms: quote.terms,
+        message: quote.message,
+        expiresAt: quote.expiresAt,
+        sentAt: quote.sentAt,
+        respondedAt: quote.respondedAt,
+        items: quote.items,
+        media: quote.media.map(({ url, mimeType, originalName, bytes }) => ({ url, mimeType, originalName, bytes })),
+      }))[0] ?? null,
     createdAt: enquiry.createdAt,
     updatedAt: enquiry.updatedAt,
   };
@@ -456,4 +474,198 @@ export const updateAdminSouvenirEnquiry = async (id, data) => {
   }
   const updated = await souvenirDb.updateSouvenirEnquiry(id, update);
   return stripEnquirySecrets(updated);
+};
+
+
+// ────────────────────────────────────────────────────────────
+// Custom souvenir quotation workflow
+// ────────────────────────────────────────────────────────────
+
+const quoteAllowedEnquiryStatuses = ["NEW", "UNDER_REVIEW", "RESPONDED"];
+
+const toCents = (value) => {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) {
+    throw new BadRequestError("Quote prices must be positive amounts");
+  }
+  return Math.round(number * 100);
+};
+
+const centsToDecimalString = (cents) => (cents / 100).toFixed(2);
+
+const quotePublicView = (quote) => ({
+  id: quote.id,
+  version: quote.version,
+  status: quote.status,
+  currency: quote.currency,
+  totalAmount: quote.totalAmount,
+  terms: quote.terms,
+  message: quote.message,
+  expiresAt: quote.expiresAt,
+  sentAt: quote.sentAt,
+  respondedAt: quote.respondedAt,
+  items: quote.items,
+  media: quote.media.map(({ url, mimeType, originalName, bytes }) => ({ url, mimeType, originalName, bytes })),
+  createdAt: quote.createdAt,
+  updatedAt: quote.updatedAt,
+});
+
+export const createAdminSouvenirQuote = async (enquiryId, data) => {
+  const enquiry = await souvenirDb.findSouvenirEnquiryById(enquiryId);
+  if (!enquiry) throw new NotFoundError("Souvenir enquiry not found");
+  if (!quoteAllowedEnquiryStatuses.includes(enquiry.status)) {
+    throw new ConflictError("A quotation cannot be created for an enquiry that is already accepted, declined, or closed");
+  }
+  if (data.currency !== "NGN") {
+    throw new BadRequestError("Only NGN souvenir quotations are currently supported");
+  }
+  if (data.expiresAt && new Date(data.expiresAt) <= new Date()) {
+    throw new BadRequestError("Quote expiry must be in the future");
+  }
+
+  const items = data.items.map((item, index) => {
+    const unitPriceCents = toCents(item.unitPrice);
+    const lineTotalCents = unitPriceCents * item.quantity;
+    if (!Number.isSafeInteger(lineTotalCents) || lineTotalCents > 999999999999) {
+      throw new BadRequestError("A quote line total is outside the supported range");
+    }
+    return {
+      name: item.name,
+      description: item.description ?? null,
+      quantity: item.quantity,
+      unitPrice: centsToDecimalString(unitPriceCents),
+      lineTotal: centsToDecimalString(lineTotalCents),
+      displayOrder: item.displayOrder ?? index,
+      _lineTotalCents: lineTotalCents,
+    };
+  });
+
+  const totalCents = items.reduce((sum, item) => sum + item._lineTotalCents, 0);
+  if (!Number.isSafeInteger(totalCents) || totalCents <= 0 || totalCents > 999999999999) {
+    throw new BadRequestError("Quote total is outside the supported range");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const current = await souvenirDb.findSouvenirEnquiryById(enquiryId, tx);
+    if (!current) throw new NotFoundError("Souvenir enquiry not found");
+    if (!quoteAllowedEnquiryStatuses.includes(current.status)) {
+      throw new ConflictError("A quotation cannot be created for this enquiry in its current status");
+    }
+    const version = await souvenirDb.getNextSouvenirQuoteVersion(enquiryId, tx);
+    const quote = await souvenirDb.createSouvenirQuote({
+      enquiryId,
+      version,
+      status: "DRAFT",
+      currency: data.currency,
+      totalAmount: centsToDecimalString(totalCents),
+      terms: data.terms ?? null,
+      message: data.message ?? null,
+      expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
+      items: items.map(({ _lineTotalCents, ...item }) => item),
+    }, tx);
+    if (current.status === "NEW") {
+      await souvenirDb.updateSouvenirEnquiry(enquiryId, { status: "UNDER_REVIEW" }, tx);
+    }
+    return quote;
+  });
+};
+
+export const addAdminSouvenirQuoteMedia = async (enquiryId, quoteId, files = []) => {
+  if (!files.length) throw new BadRequestError("Attach at least one reference image");
+  if (files.length > 10) throw new BadRequestError("A maximum of 10 reference files is allowed");
+
+  const quote = await souvenirDb.findSouvenirQuoteByIdAndEnquiry(quoteId, enquiryId);
+  if (!quote) throw new NotFoundError("Souvenir quote not found for this enquiry");
+  if (quote.status !== "DRAFT") throw new ConflictError("Reference media can only be added to a draft quote");
+
+  const uploadedAssets = [];
+  try {
+    for (const file of files) {
+      const uploaded = await uploadMedia({
+        buffer: file.buffer,
+        mimeType: file.mimetype,
+        folder: "keplex/souvenirs/quotes",
+      });
+      uploadedAssets.push({
+        quoteId,
+        url: uploaded.url,
+        publicId: uploaded.publicId,
+        resourceType: uploaded.resourceType,
+        mimeType: file.mimetype,
+        bytes: uploaded.bytes,
+        originalName: file.originalname?.slice(0, 255) ?? null,
+      });
+    }
+    await souvenirDb.createSouvenirQuoteMedia(uploadedAssets);
+    return souvenirDb.findSouvenirQuoteByIdAndEnquiry(quoteId, enquiryId);
+  } catch (error) {
+    await Promise.all(uploadedAssets.map((asset) =>
+      deleteMedia({ publicId: asset.publicId, resourceType: asset.resourceType }).catch(() => {})
+    ));
+    throw error;
+  }
+};
+
+export const sendAdminSouvenirQuote = async (enquiryId, quoteId) => {
+  return prisma.$transaction(async (tx) => {
+    const enquiry = await souvenirDb.findSouvenirEnquiryById(enquiryId, tx);
+    if (!enquiry) throw new NotFoundError("Souvenir enquiry not found");
+    const quote = await souvenirDb.findSouvenirQuoteByIdAndEnquiry(quoteId, enquiryId, tx);
+    if (!quote) throw new NotFoundError("Souvenir quote not found for this enquiry");
+    if (quote.status !== "DRAFT") throw new ConflictError("Only a draft quote can be sent");
+    if (!quote.items.length) throw new BadRequestError("A quote must contain at least one priced item");
+    if (!quoteAllowedEnquiryStatuses.includes(enquiry.status)) {
+      throw new ConflictError("This enquiry can no longer receive a quote");
+    }
+    if (quote.expiresAt && quote.expiresAt <= new Date()) {
+      throw new ConflictError("This quote has expired; create a new quote with a future expiry");
+    }
+
+    await souvenirDb.updateSouvenirQuotes(
+      { enquiryId, status: "SENT" },
+      { status: "SUPERSEDED" },
+      tx,
+    );
+    const sent = await souvenirDb.updateSouvenirQuote(quoteId, {
+      status: "SENT",
+      sentAt: new Date(),
+    }, tx);
+    await souvenirDb.updateSouvenirEnquiry(enquiryId, {
+      status: "RESPONDED",
+      responseMessage: quote.message ?? enquiry.responseMessage,
+      respondedAt: new Date(),
+    }, tx);
+    return quotePublicView(sent);
+  });
+};
+
+export const respondToSouvenirQuote = async (token, { quoteId, decision }) => {
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const enquiry = await souvenirDb.findEnquiryByTokenHash(tokenHash);
+  if (!enquiry) throw new NotFoundError("Souvenir enquiry not found");
+
+  const result = await prisma.$transaction(async (tx) => {
+    const currentEnquiry = await souvenirDb.findEnquiryByTokenHash(tokenHash, tx);
+    if (!currentEnquiry) throw new NotFoundError("Souvenir enquiry not found");
+    const quote = await souvenirDb.findSouvenirQuoteByIdAndEnquiry(quoteId, currentEnquiry.id, tx);
+    if (!quote) throw new NotFoundError("Souvenir quote not found");
+    if (quote.status !== "SENT") {
+      throw new ConflictError("Only the current sent quotation can be accepted or declined");
+    }
+    if (quote.expiresAt && quote.expiresAt <= new Date()) {
+      await souvenirDb.updateSouvenirQuote(quote.id, { status: "EXPIRED" }, tx);
+      return { expired: true };
+    }
+
+    const status = decision === "ACCEPT" ? "ACCEPTED" : "DECLINED";
+    const updatedQuote = await souvenirDb.updateSouvenirQuote(quote.id, {
+      status,
+      respondedAt: new Date(),
+    }, tx);
+    await souvenirDb.updateSouvenirEnquiryStatus(currentEnquiry.id, status, tx);
+    return { expired: false, quote: quotePublicView(updatedQuote), enquiryStatus: status };
+  });
+
+  if (result.expired) throw new ConflictError("This quotation has expired");
+  return result;
 };
