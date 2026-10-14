@@ -358,6 +358,7 @@ model SouvenirEnquiry {
 
   product SouvenirProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
   media SouvenirEnquiryMedia[]
+  quotes SouvenirQuote[]
 
   @@index([status, createdAt])
   @@index([customerEmail])
@@ -380,6 +381,74 @@ model SouvenirEnquiryMedia {
   enquiry SouvenirEnquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
 
   @@index([enquiryId, createdAt])
+}
+
+
+// ────────────────────────────────────────────────────────────
+// Custom souvenir quotations
+// ────────────────────────────────────────────────────────────
+
+model SouvenirQuote {
+  id String @id @default(cuid())
+
+  enquiryId String
+  version Int
+  status SouvenirQuoteStatus @default(DRAFT)
+
+  currency String @default("NGN")
+  totalAmount Decimal @db.Decimal(12, 2)
+  terms String?
+  message String?
+  expiresAt DateTime?
+  sentAt DateTime?
+  respondedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enquiry SouvenirEnquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  items SouvenirQuoteItem[]
+  media SouvenirQuoteMedia[]
+
+  @@unique([enquiryId, version])
+  @@index([enquiryId, status, createdAt])
+  @@index([status, expiresAt])
+}
+
+model SouvenirQuoteItem {
+  id String @id @default(cuid())
+
+  quoteId String
+  name String
+  description String?
+  quantity Int
+  unitPrice Decimal @db.Decimal(12, 2)
+  lineTotal Decimal @db.Decimal(12, 2)
+  displayOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  quote SouvenirQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId, displayOrder])
+}
+
+model SouvenirQuoteMedia {
+  id String @id @default(cuid())
+
+  quoteId String
+  url String
+  publicId String
+  resourceType String @default("image")
+  mimeType String
+  bytes Int
+  originalName String?
+
+  createdAt DateTime @default(now())
+
+  quote SouvenirQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId, createdAt])
 }
 
 // ────────────────────────────────────────────────────────────
@@ -468,4 +537,13 @@ enum SouvenirEnquiryStatus {
   ACCEPTED
   DECLINED
   CLOSED
+}
+
+enum SouvenirQuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  SUPERSEDED
 }
