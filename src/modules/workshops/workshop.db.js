@@ -8,6 +8,13 @@ const publicOfferingInclude = {
   },
 };
 
+export const findOfferingBySlug = (slug, tx = prisma) => tx.workshopOffering.findUnique({ where: { slug }, select: { id: true, slug: true } });
+
+export const listAdminOfferings = (tx = prisma) => tx.workshopOffering.findMany({
+  orderBy: [{ displayOrder: "asc" }, { title: "asc" }],
+  include: { participantTiers: { orderBy: [{ participantCount: "asc" }, { displayOrder: "asc" }] } },
+});
+
 export const listPublicOfferings = (tx = prisma) => tx.workshopOffering.findMany({
   where: { active: true },
   orderBy: [{ featured: "desc" }, { displayOrder: "asc" }, { title: "asc" }],
