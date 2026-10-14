@@ -12,7 +12,7 @@ const uniqueSlug = async (value, currentId = null) => {
   let candidate = base;
   let suffix = 2;
   while (true) {
-    const existing = await prisma.workshopOffering.findUnique({ where: { slug: candidate }, select: { id: true } });
+    const existing = await workshopDb.findOfferingBySlug(candidate);
     if (!existing || existing.id === currentId) return candidate;
     candidate = `${base}-${suffix++}`;
   }
@@ -32,6 +32,8 @@ const publicOffering = (offering) => ({
 });
 
 export const getPublicOfferings = async () => (await workshopDb.listPublicOfferings()).map(publicOffering);
+
+export const listAdminOfferings = () => workshopDb.listAdminOfferings();
 
 export const createOffering = async (data) => {
   const slug = await uniqueSlug(data.slug || data.title);
