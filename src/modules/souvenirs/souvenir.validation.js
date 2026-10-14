@@ -99,7 +99,7 @@ export const paginationQuerySchema = z.object({
 });
 
 export const orderStatusSchema = z.object({
-  status: z.enum(["SUBMITTED", "AWAITING_PAYMENT", "PAID", "IN_PRODUCTION", "READY", "FULFILLED", "CANCELLED", "REJECTED"]),
+  status: z.enum(["SUBMITTED", "AWAITING_PAYMENT", "IN_PRODUCTION", "READY", "FULFILLED", "CANCELLED", "REJECTED"]),
   adminNotes: z.string().trim().max(5000).optional().nullable(),
 });
 
