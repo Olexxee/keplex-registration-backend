@@ -262,13 +262,30 @@ const createPdfForCertificate = (certificate) =>
     issuedAt: certificate.issuedAt,
   });
 
+const withDocumentAccessUrl = (certificate) => ({
+  ...certificate,
+  documentAccessUrl: cloudinary.url(certificate.documentPublicId, {
+    resource_type: "raw",
+    type: "authenticated",
+    sign_url: true,
+    secure: true,
+    format: "pdf",
+  }),
+});
+
+export const getCertificate = async (id) => {
+  const certificate = await db.findCertificateById(id);
+  if (!certificate) throw new NotFoundError("Certificate not found.");
+  return withDocumentAccessUrl(certificate);
+};
+
 export const listCertificates = async (query) => {
   const [items, total] = await Promise.all([
     db.listCertificates(query),
     db.countCertificates(query),
   ]);
   return {
-    items,
+    items: items.map(withDocumentAccessUrl),
     pagination: {
       page: query.page,
       limit: query.limit,
