@@ -66,3 +66,9 @@ export const clearPrimaryProductMedia = (productId, tx = prisma) => tx.souvenirP
 export const getActivePriceTierCount = (productId, tx = prisma) => tx.souvenirPriceTier.count({
   where: { productId, active: true },
 });
+
+export const findActiveColorOptionsByIds = (productId, ids, tx = prisma) =>
+  tx.souvenirColorOption.findMany({
+    where: { productId, id: { in: ids }, active: true },
+    select: { id: true, name: true, colorHex: true },
+  });
