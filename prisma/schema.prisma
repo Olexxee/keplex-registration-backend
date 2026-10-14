@@ -184,6 +184,93 @@ model Payment {
 }
 
 // ────────────────────────────────────────────────────────────
+// Souvenir catalogue
+// ────────────────────────────────────────────────────────────
+
+model SouvenirProduct {
+  id String @id @default(cuid())
+
+  name        String
+  slug        String  @unique
+  description String?
+  bookingTerms String?
+  productionLeadTimeDays Int?
+
+  active       Boolean @default(false)
+  featured     Boolean @default(false)
+  displayOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  media        SouvenirProductMedia[]
+  colorOptions SouvenirColorOption[]
+  priceTiers   SouvenirPriceTier[]
+
+  @@index([active, displayOrder])
+  @@index([featured, displayOrder])
+}
+
+model SouvenirProductMedia {
+  id String @id @default(cuid())
+
+  productId String
+  url       String
+  publicId  String
+  altText   String?
+  isPrimary Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product SouvenirProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, sortOrder])
+  @@index([productId, isPrimary])
+}
+
+model SouvenirColorOption {
+  id String @id @default(cuid())
+
+  productId String
+  name      String
+  colorHex  String  @db.VarChar(7)
+  swatchImageUrl String?
+  swatchPublicId String?
+  active    Boolean @default(true)
+  displayOrder Int  @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product SouvenirProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, name])
+  @@index([productId, active, displayOrder])
+}
+
+model SouvenirPriceTier {
+  id String @id @default(cuid())
+
+  productId String
+  label      String
+  minQuantity Int
+  maxQuantity Int?
+  totalPrice Decimal @db.Decimal(12, 2)
+  currency   String  @default("NGN")
+  active     Boolean @default(true)
+  displayOrder Int   @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product SouvenirProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, active, minQuantity])
+}
+
+// ────────────────────────────────────────────────────────────
 // Testimonials
 // ────────────────────────────────────────────────────────────
 
