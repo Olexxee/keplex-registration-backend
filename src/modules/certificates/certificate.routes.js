@@ -34,10 +34,22 @@ const proofUpload = multer({
   },
 });
 
+const parseProofUpload = (req, res, next) => {
+  proofUpload.single("proof")(req, res, (error) => {
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.message || "Proof upload failed.",
+      });
+    }
+    return next();
+  });
+};
+
 // Public endpoints
 router.post(
   "/submissions",
-  proofUpload.single("proof"),
+  parseProofUpload,
   validateBody(createSubmissionSchema),
   controller.createSubmission,
 );
