@@ -55,3 +55,8 @@ export const slugParamsSchema = z.object({ slug: z.string().trim().min(1).max(22
 export const colorIdParamsSchema = z.object({ colorId: z.string().trim().min(1) });
 export const tierIdParamsSchema = z.object({ tierId: z.string().trim().min(1) });
 export const mediaIdParamsSchema = z.object({ mediaId: z.string().trim().min(1) });
+
+export const selectedColorOptionIdsSchema = z.array(z.string().trim().min(1))
+  .min(1, "Select at least one colour")
+  .max(3, "You can select a maximum of three colours")
+  .refine((ids) => new Set(ids).size === ids.length, "Colours must be unique");
