@@ -78,9 +78,15 @@ const orderInclude = {
   colorSelections: { orderBy: { createdAt: "asc" } },
 };
 
+const quoteInclude = {
+  items: { orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }] },
+  media: { orderBy: { createdAt: "asc" } },
+};
+
 const enquiryInclude = {
   media: { orderBy: { createdAt: "asc" } },
   product: { select: { id: true, name: true, slug: true } },
+  quotes: { orderBy: { version: "desc" }, include: quoteInclude },
 };
 
 export const findActiveProductForOrder = (id, tx = prisma) =>
@@ -167,3 +173,40 @@ export const updateSouvenirEnquiry = (id, data, tx = prisma) =>
     data,
     include: enquiryInclude,
   });
+
+
+export const getNextSouvenirQuoteVersion = async (enquiryId, tx = prisma) => {
+  const latest = await tx.souvenirQuote.findFirst({
+    where: { enquiryId },
+    orderBy: { version: "desc" },
+    select: { version: true },
+  });
+  return (latest?.version ?? 0) + 1;
+};
+
+export const createSouvenirQuote = (data, tx = prisma) =>
+  tx.souvenirQuote.create({
+    data: {
+      ...data,
+      items: { create: data.items },
+    },
+    include: quoteInclude,
+  });
+
+export const findSouvenirQuoteById = (id, tx = prisma) =>
+  tx.souvenirQuote.findUnique({ where: { id }, include: quoteInclude });
+
+export const findSouvenirQuoteByIdAndEnquiry = (id, enquiryId, tx = prisma) =>
+  tx.souvenirQuote.findFirst({ where: { id, enquiryId }, include: quoteInclude });
+
+export const updateSouvenirQuote = (id, data, tx = prisma) =>
+  tx.souvenirQuote.update({ where: { id }, data, include: quoteInclude });
+
+export const updateSouvenirQuotes = (where, data, tx = prisma) =>
+  tx.souvenirQuote.updateMany({ where, data });
+
+export const createSouvenirQuoteMedia = (data, tx = prisma) =>
+  tx.souvenirQuoteMedia.createMany({ data });
+
+export const updateSouvenirEnquiryStatus = (id, status, tx = prisma) =>
+  tx.souvenirEnquiry.update({ where: { id }, data: { status }, include: enquiryInclude });
