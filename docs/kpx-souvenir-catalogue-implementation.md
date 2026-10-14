@@ -8,7 +8,7 @@ This implementation adds the first runtime slice of the approved blueprint: admi
 - A colour option stores a display name, six-digit hex value, optional swatch image URL/provider public ID, active flag, and display order.
 - Public catalogue responses expose active colour options only; admin responses include inactive options.
 - Disabling a colour preserves the record and affects future selections only.
-- The future order endpoint must accept no more than three distinct colour option IDs, validate that every selected option belongs to the selected product and is active, and store immutable colour-name/hex snapshots on the order. The three-colour rule is not yet enforced because order creation is not part of this implementation slice.
+- A reusable Zod schema and service validator now enforce one to three distinct colour option IDs, verify that each option belongs to the selected product and is active, and return colour-name/hex snapshots for persistence. The eventual order endpoint must call this validator and persist those snapshots; order creation itself is not part of this implementation slice.
 
 ## Price tiers
 
