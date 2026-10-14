@@ -75,14 +75,14 @@ export const setProductActive = async (id, active) => {
   return souvenirDb.updateProduct(id, { active });
 };
 
-export const validateSelectedColorOptions = async (productId, colorOptionIds) => {
+export const validateSelectedColorOptions = async (productId, colorOptionIds, tx) => {
   if (!Array.isArray(colorOptionIds) || colorOptionIds.length < 1 || colorOptionIds.length > 3) {
     throw new BadRequestError("Select between one and three colours");
   }
   if (new Set(colorOptionIds).size !== colorOptionIds.length) {
     throw new BadRequestError("Selected colours must be unique");
   }
-  const colors = await souvenirDb.findActiveColorOptionsByIds(productId, colorOptionIds);
+  const colors = await souvenirDb.findActiveColorOptionsByIds(productId, colorOptionIds, tx);
   if (colors.length !== colorOptionIds.length) {
     throw new BadRequestError("Every selected colour must be active and belong to the selected souvenir");
   }
@@ -220,24 +220,26 @@ const stripEnquirySecrets = (enquiry) => {
 };
 
 export const createGuestSouvenirOrder = async (data) => {
-  const product = await souvenirDb.findActiveProductForOrder(data.productId);
-  if (!product) throw new NotFoundError("Souvenir package is unavailable");
-
-  const tier = product.priceTiers.find((item) =>
-    data.quantity >= item.minQuantity &&
-    (item.maxQuantity == null || data.quantity <= item.maxQuantity)
-  );
-  if (!tier) {
-    throw new BadRequestError("The selected quantity does not match an available price package");
-  }
-  if (tier.currency !== "NGN") {
-    throw new BadRequestError("Only NGN souvenir orders are currently supported");
-  }
-
-  const colorSnapshots = await validateSelectedColorOptions(data.productId, data.colorOptionIds);
   const { publicReference, accessToken, accessTokenHash } = createGuestCredentials("SOUV");
 
   const order = await prisma.$transaction(async (tx) => {
+    // Read the product, active tier, and active colours inside the same transaction
+    // used to persist the immutable order snapshots.
+    const product = await souvenirDb.findActiveProductForOrder(data.productId, tx);
+    if (!product) throw new NotFoundError("Souvenir package is unavailable");
+
+    const tier = product.priceTiers.find((item) =>
+      data.quantity >= item.minQuantity &&
+      (item.maxQuantity == null || data.quantity <= item.maxQuantity)
+    );
+    if (!tier) {
+      throw new BadRequestError("The selected quantity does not match an available price package");
+    }
+    if (tier.currency !== "NGN") {
+      throw new BadRequestError("Only NGN souvenir orders are currently supported");
+    }
+
+    const colorSnapshots = await validateSelectedColorOptions(data.productId, data.colorOptionIds, tx);
     const created = await souvenirDb.createSouvenirOrder({
       publicReference,
       accessTokenHash,
