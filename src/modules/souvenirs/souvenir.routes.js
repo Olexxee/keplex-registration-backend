@@ -2,7 +2,7 @@ import express from "express";
 import * as controller from "./souvenir.controller.js";
 import { authMiddleware } from "../../middlewares/authMiddleware.js";
 import { roleMiddleware } from "../../middlewares/roleMiddleware.js";
-import { uploadMultipleMedia } from "../../middlewares/uploadMiddleware.js";
+import { uploadMultipleReferenceMedia } from "../../middlewares/uploadMiddleware.js";
 import { validateBody, validateParams, validateQuery } from "../../middlewares/validateMiddleware.js";
 import {
   createProductSchema,
@@ -33,7 +33,7 @@ const admin = [authMiddleware, roleMiddleware("ADMIN", "SUPER_ADMIN")];
 // Guest order and custom-design enquiry routes.
 router.post("/orders", validateBody(createSouvenirOrderSchema), controller.createGuestSouvenirOrder);
 router.get("/orders/access/:token", validateParams(accessTokenParamsSchema), controller.getGuestSouvenirOrder);
-router.post("/enquiries", uploadMultipleMedia, validateBody(createSouvenirEnquirySchema), controller.createGuestSouvenirEnquiry);
+router.post("/enquiries", uploadMultipleReferenceMedia, validateBody(createSouvenirEnquirySchema), controller.createGuestSouvenirEnquiry);
 router.get("/enquiries/access/:token", validateParams(accessTokenParamsSchema), controller.getGuestSouvenirEnquiry);
 
 // Admin transaction handling. These static routes must precede /:slug.
