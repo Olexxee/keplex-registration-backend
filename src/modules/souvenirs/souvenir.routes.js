@@ -20,6 +20,9 @@ import {
   paginationQuerySchema,
   orderStatusSchema,
   enquiryAdminUpdateSchema,
+  quoteRouteParamsSchema,
+  createSouvenirQuoteSchema,
+  souvenirQuoteResponseSchema,
   idParamsSchema,
   slugParamsSchema,
   colorIdParamsSchema,
@@ -35,6 +38,7 @@ router.post("/orders", validateBody(createSouvenirOrderSchema), controller.creat
 router.get("/orders/access/:token", validateParams(accessTokenParamsSchema), controller.getGuestSouvenirOrder);
 router.post("/enquiries", uploadMultipleReferenceMedia, validateBody(createSouvenirEnquirySchema), controller.createGuestSouvenirEnquiry);
 router.get("/enquiries/access/:token", validateParams(accessTokenParamsSchema), controller.getGuestSouvenirEnquiry);
+router.post("/enquiries/access/:token/quote-response", validateParams(accessTokenParamsSchema), validateBody(souvenirQuoteResponseSchema), controller.respondToSouvenirQuote);
 
 // Admin transaction handling. These static routes must precede /:slug.
 router.get("/admin/orders", ...admin, validateQuery(paginationQuerySchema), controller.listAdminSouvenirOrders);
@@ -44,6 +48,9 @@ router.patch("/admin/orders/:id", ...admin, validateParams(idParamsSchema), vali
 router.get("/admin/enquiries", ...admin, validateQuery(paginationQuerySchema), controller.listAdminSouvenirEnquiries);
 router.get("/admin/enquiries/:id", ...admin, validateParams(idParamsSchema), controller.getAdminSouvenirEnquiry);
 router.patch("/admin/enquiries/:id", ...admin, validateParams(idParamsSchema), validateBody(enquiryAdminUpdateSchema), controller.updateAdminSouvenirEnquiry);
+router.post("/admin/enquiries/:id/quotes", ...admin, validateParams(idParamsSchema), validateBody(createSouvenirQuoteSchema), controller.createAdminSouvenirQuote);
+router.post("/admin/enquiries/:id/quotes/:quoteId/media", ...admin, validateParams(quoteRouteParamsSchema), uploadMultipleReferenceMedia, controller.addAdminSouvenirQuoteMedia);
+router.post("/admin/enquiries/:id/quotes/:quoteId/send", ...admin, validateParams(quoteRouteParamsSchema), controller.sendAdminSouvenirQuote);
 
 // Admin catalogue management.
 router.get("/admin/products", ...admin, controller.getAdminProducts);
