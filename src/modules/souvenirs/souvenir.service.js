@@ -271,7 +271,15 @@ export const createGuestSouvenirOrder = async (data) => {
   });
 
   return {
-    order: stripOrderSecrets(order),
+    order: {
+      publicReference: order.publicReference,
+      productName: order.productNameSnapshot,
+      quantity: order.quantity,
+      totalPrice: order.totalPriceSnapshot,
+      currency: order.currency,
+      status: order.status,
+      colorSelections: order.colorSelections,
+    },
     accessToken,
     accessUrlPath: `/souvenirs/orders/access/${accessToken}`,
   };
@@ -297,8 +305,8 @@ export const getGuestSouvenirOrder = async (token) => {
 };
 
 const allowedOrderTransitions = {
-  SUBMITTED: ["AWAITING_PAYMENT", "PAID", "CANCELLED", "REJECTED"],
-  AWAITING_PAYMENT: ["PAID", "CANCELLED", "REJECTED"],
+  SUBMITTED: ["AWAITING_PAYMENT", "CANCELLED", "REJECTED"],
+  AWAITING_PAYMENT: ["CANCELLED", "REJECTED"],
   PAID: ["IN_PRODUCTION", "CANCELLED"],
   IN_PRODUCTION: ["READY", "CANCELLED"],
   READY: ["FULFILLED"],
@@ -385,7 +393,12 @@ export const createGuestSouvenirEnquiry = async ({ data, files = [] }) => {
     });
 
     return {
-      enquiry: stripEnquirySecrets(enquiry),
+      enquiry: {
+        publicReference: enquiry.publicReference,
+        status: enquiry.status,
+        mediaCount: enquiry.media.length,
+        createdAt: enquiry.createdAt,
+      },
       accessToken,
       accessUrlPath: `/souvenirs/enquiries/access/${accessToken}`,
     };
