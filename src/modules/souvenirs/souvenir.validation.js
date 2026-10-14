@@ -60,3 +60,51 @@ export const selectedColorOptionIdsSchema = z.array(z.string().trim().min(1))
   .min(1, "Select at least one colour")
   .max(3, "You can select a maximum of three colours")
   .refine((ids) => new Set(ids).size === ids.length, "Colours must be unique");
+
+
+const guestContact = {
+  customerName: z.string().trim().min(2).max(100),
+  customerEmail: z.string().trim().email().max(254).transform((value) => value.toLowerCase()),
+  customerWhatsApp: z.string().trim().min(7).max(30).regex(/^\\+?[0-9 ()-]+$/, "Enter a valid WhatsApp number"),
+};
+
+export const createSouvenirOrderSchema = z.object({
+  ...guestContact,
+  productId: z.string().trim().min(1),
+  quantity: z.coerce.number().int().min(1).max(100000),
+  colorOptionIds: z.preprocess((value) => {
+    if (typeof value === "string") {
+      try { return JSON.parse(value); } catch { return value.split(",").map((item) => item.trim()).filter(Boolean); }
+    }
+    return value;
+  }, selectedColorOptionIdsSchema),
+  customerNotes: z.string().trim().max(3000).optional().nullable(),
+});
+
+export const createSouvenirEnquirySchema = z.object({
+  ...guestContact,
+  productId: z.string().trim().min(1).optional().nullable(),
+  requestedQuantity: z.coerce.number().int().min(1).max(100000).optional().nullable(),
+  designDescription: z.string().trim().min(10).max(5000),
+});
+
+export const accessTokenParamsSchema = z.object({
+  token: z.string().trim().min(32).max(256),
+});
+
+export const paginationQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  status: z.string().trim().optional(),
+});
+
+export const orderStatusSchema = z.object({
+  status: z.enum(["SUBMITTED", "AWAITING_PAYMENT", "PAID", "IN_PRODUCTION", "READY", "FULFILLED", "CANCELLED", "REJECTED"]),
+  adminNotes: z.string().trim().max(5000).optional().nullable(),
+});
+
+export const enquiryAdminUpdateSchema = z.object({
+  status: z.enum(["NEW", "UNDER_REVIEW", "RESPONDED", "ACCEPTED", "DECLINED", "CLOSED"]).optional(),
+  adminNotes: z.string().trim().max(5000).optional().nullable(),
+  responseMessage: z.string().trim().min(1).max(5000).optional().nullable(),
+});
