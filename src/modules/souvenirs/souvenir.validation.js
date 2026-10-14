@@ -108,3 +108,28 @@ export const enquiryAdminUpdateSchema = z.object({
   adminNotes: z.string().trim().max(5000).optional().nullable(),
   responseMessage: z.string().trim().min(1).max(5000).optional().nullable(),
 });
+
+
+export const quoteRouteParamsSchema = z.object({
+  id: z.string().trim().min(1),
+  quoteId: z.string().trim().min(1),
+});
+
+export const createSouvenirQuoteSchema = z.object({
+  currency: z.string().trim().length(3).transform((value) => value.toUpperCase()).default("NGN"),
+  terms: z.string().trim().max(5000).optional().nullable(),
+  message: z.string().trim().max(5000).optional().nullable(),
+  expiresAt: z.coerce.date().optional().nullable(),
+  items: z.array(z.object({
+    name: z.string().trim().min(1).max(200),
+    description: z.string().trim().max(1000).optional().nullable(),
+    quantity: z.coerce.number().int().min(1).max(100000),
+    unitPrice: z.coerce.number().positive().max(9999999999.99),
+    displayOrder: z.coerce.number().int().min(0).optional(),
+  })).min(1).max(100),
+});
+
+export const souvenirQuoteResponseSchema = z.object({
+  quoteId: z.string().trim().min(1),
+  decision: z.enum(["ACCEPT", "DECLINE"]),
+});
