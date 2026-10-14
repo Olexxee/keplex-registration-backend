@@ -57,3 +57,65 @@ export const updateProductMedia = asyncWrapper(async (req, res) => {
   const data = await souvenirService.updateProductMedia(req.validated.params.mediaId, req.validated.body);
   return res.json({ success: true, data });
 });
+
+
+export const createGuestSouvenirOrder = asyncWrapper(async (req, res) => {
+  const result = await souvenirService.createGuestSouvenirOrder(req.validated.body);
+  return res.status(201).json({
+    success: true,
+    message: "Souvenir order request submitted",
+    data: result,
+  });
+});
+
+export const getGuestSouvenirOrder = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.getGuestSouvenirOrder(req.validated.params.token);
+  return res.json({ success: true, data });
+});
+
+export const listAdminSouvenirOrders = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.listAdminSouvenirOrders(req.validated.query);
+  return res.json({ success: true, data });
+});
+
+export const getAdminSouvenirOrder = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.getAdminSouvenirOrder(req.validated.params.id);
+  return res.json({ success: true, data });
+});
+
+export const updateAdminSouvenirOrder = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.updateAdminSouvenirOrder(req.validated.params.id, req.validated.body);
+  return res.json({ success: true, data });
+});
+
+export const createGuestSouvenirEnquiry = asyncWrapper(async (req, res) => {
+  const result = await souvenirService.createGuestSouvenirEnquiry({
+    data: req.validated.body,
+    files: req.files ?? [],
+  });
+  return res.status(201).json({
+    success: true,
+    message: "Custom souvenir enquiry submitted",
+    data: result,
+  });
+});
+
+export const getGuestSouvenirEnquiry = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.getGuestSouvenirEnquiry(req.validated.params.token);
+  return res.json({ success: true, data });
+});
+
+export const listAdminSouvenirEnquiries = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.listAdminSouvenirEnquiries(req.validated.query);
+  return res.json({ success: true, data });
+});
+
+export const getAdminSouvenirEnquiry = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.getAdminSouvenirEnquiry(req.validated.params.id);
+  return res.json({ success: true, data });
+});
+
+export const updateAdminSouvenirEnquiry = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.updateAdminSouvenirEnquiry(req.validated.params.id, req.validated.body);
+  return res.json({ success: true, data });
+});
