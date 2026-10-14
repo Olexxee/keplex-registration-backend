@@ -119,3 +119,41 @@ export const updateAdminSouvenirEnquiry = asyncWrapper(async (req, res) => {
   const data = await souvenirService.updateAdminSouvenirEnquiry(req.validated.params.id, req.validated.body);
   return res.json({ success: true, data });
 });
+
+
+export const createAdminSouvenirQuote = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.createAdminSouvenirQuote(
+    req.validated.params.id,
+    req.validated.body,
+  );
+  return res.status(201).json({ success: true, message: "Souvenir quote draft created", data });
+});
+
+export const addAdminSouvenirQuoteMedia = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.addAdminSouvenirQuoteMedia(
+    req.validated.params.id,
+    req.validated.params.quoteId,
+    req.files ?? [],
+  );
+  return res.status(201).json({ success: true, message: "Quote reference media attached", data });
+});
+
+export const sendAdminSouvenirQuote = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.sendAdminSouvenirQuote(
+    req.validated.params.id,
+    req.validated.params.quoteId,
+  );
+  return res.json({
+    success: true,
+    message: "Quote published to the customer's secure enquiry page",
+    data,
+  });
+});
+
+export const respondToSouvenirQuote = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.respondToSouvenirQuote(
+    req.validated.params.token,
+    req.validated.body,
+  );
+  return res.json({ success: true, message: "Quotation response recorded", data });
+});
