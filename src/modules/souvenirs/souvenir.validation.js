@@ -83,8 +83,8 @@ export const createSouvenirOrderSchema = z.object({
 
 export const createSouvenirEnquirySchema = z.object({
   ...guestContact,
-  productId: z.string().trim().min(1).optional().nullable(),
-  requestedQuantity: z.coerce.number().int().min(1).max(100000).optional().nullable(),
+  productId: z.preprocess((value) => value === "" ? undefined : value, z.string().trim().min(1).optional().nullable()),
+  requestedQuantity: z.preprocess((value) => value === "" || value == null ? undefined : value, z.coerce.number().int().min(1).max(100000).optional().nullable()),
   designDescription: z.string().trim().min(10).max(5000),
 });
 
