@@ -25,20 +25,32 @@ export const updateColorOptionSchema = createColorOptionSchema.partial();
 
 export const setActiveSchema = z.object({ active: z.boolean() });
 
-export const createPriceTierSchema = z.object({
+const priceTierObjectSchema = z.object({
   label: z.string().trim().min(1).max(120),
   minQuantity: z.coerce.number().int().min(1),
   maxQuantity: z.coerce.number().int().min(1).optional().nullable(),
   totalPrice: z.coerce.number().positive().max(9999999999.99),
   currency: z.string().trim().length(3).transform((value) => value.toUpperCase()).default("NGN"),
   displayOrder: z.coerce.number().int().min(0).optional().default(0),
-}).refine((value) => value.maxQuantity == null || value.maxQuantity >= value.minQuantity, {
-  message: "Maximum quantity must be greater than or equal to minimum quantity",
-  path: ["maxQuantity"],
 });
-export const updatePriceTierSchema = createPriceTierSchema.partial().refine(
-  (value) => value.maxQuantity == null || value.minQuantity == null || value.maxQuantity >= value.minQuantity,
-  { message: "Maximum quantity must be greater than or equal to minimum quantity", path: ["maxQuantity"] },
+
+export const createPriceTierSchema = priceTierObjectSchema.refine(
+  (value) => value.maxQuantity == null || value.maxQuantity >= value.minQuantity,
+  {
+    message: "Maximum quantity must be greater than or equal to minimum quantity",
+    path: ["maxQuantity"],
+  },
+);
+
+export const updatePriceTierSchema = priceTierObjectSchema.partial().refine(
+  (value) =>
+    value.maxQuantity == null ||
+    value.minQuantity == null ||
+    value.maxQuantity >= value.minQuantity,
+  {
+    message: "Maximum quantity must be greater than or equal to minimum quantity",
+    path: ["maxQuantity"],
+  },
 );
 
 export const createProductMediaSchema = z.object({
@@ -65,7 +77,7 @@ export const selectedColorOptionIdsSchema = z.array(z.string().trim().min(1))
 const guestContact = {
   customerName: z.string().trim().min(2).max(100),
   customerEmail: z.string().trim().email().max(254).transform((value) => value.toLowerCase()),
-  customerWhatsApp: z.string().trim().min(7).max(30).regex(/^\+?[0-9 ()-]+$/, "Enter a valid WhatsApp number"),
+  customerWhatsApp: z.string().trim().min(7).max(30).regex(/^\\+?[0-9 ()-]+$/, "Enter a valid WhatsApp number"),
 };
 
 export const createSouvenirOrderSchema = z.object({
