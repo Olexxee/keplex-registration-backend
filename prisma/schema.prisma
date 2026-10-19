@@ -90,6 +90,8 @@ model TrainingProgram {
 
   media         TrainingMedia[]
   registrations Registration[]
+  certificateSubmissions CertificateSubmission[]
+  certificates Certificate[]
 
   @@index([active, displayOrder])
   @@index([featured, displayOrder])
@@ -145,6 +147,8 @@ model Registration {
   trainingProgram TrainingProgram @relation(fields: [trainingProgramId], references: [id], onDelete: Restrict)
 
   payments Payment[]
+  certificateSubmissions CertificateSubmission[]
+  certificates Certificate[]
 
   @@unique([trainingProgramId, email])
   @@index([email])
@@ -562,6 +566,74 @@ model WorkshopBooking {
   @@index([customerWhatsApp])
 }
 
+
+model CertificateSubmission {
+  id String @id @default(cuid())
+
+  studentName String
+  studentEmail String
+  trainingProgramId String
+  registrationId String?
+
+  proofUrl String
+  proofPublicId String
+  proofOriginalName String
+  proofMimeType String
+  proofBytes Int
+
+  notes String?
+  status CertificateSubmissionStatus @default(PENDING)
+  reviewNotes String?
+  reviewedAt DateTime?
+  reviewedByAdminId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainingProgram TrainingProgram @relation(fields: [trainingProgramId], references: [id], onDelete: Restrict)
+  registration Registration? @relation(fields: [registrationId], references: [id], onDelete: SetNull)
+  certificate Certificate?
+
+  @@index([status, createdAt])
+  @@index([studentEmail])
+  @@index([trainingProgramId, studentEmail])
+  @@index([registrationId])
+}
+
+model Certificate {
+  id String @id @default(cuid())
+
+  certificateNumber String @unique
+  studentName String
+  studentEmail String
+  trainingProgramTitle String
+  trainingProgramId String?
+  registrationId String?
+  submissionId String? @unique
+
+  issuedAt DateTime @default(now())
+  issuedByAdminId String
+  status CertificateStatus @default(ISSUED)
+  revokedAt DateTime?
+  revocationReason String?
+
+  documentUrl String
+  documentPublicId String
+  emailSentAt DateTime?
+  lastEmailError String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainingProgram TrainingProgram? @relation(fields: [trainingProgramId], references: [id], onDelete: SetNull)
+  registration Registration? @relation(fields: [registrationId], references: [id], onDelete: SetNull)
+  submission CertificateSubmission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+
+  @@index([studentEmail, status])
+  @@index([trainingProgramId, status])
+  @@index([issuedAt])
+}
+
 // ────────────────────────────────────────────────────────────
 // Enums
 // ────────────────────────────────────────────────────────────
@@ -648,6 +720,7 @@ enum WorkshopVenueMode {
   UNDECIDED
 }
 
+
 enum WorkshopBookingStatus {
   NEW
   UNDER_REVIEW
@@ -657,4 +730,15 @@ enum WorkshopBookingStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+enum CertificateSubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CertificateStatus {
+  ISSUED
+  REVOKED
 }
