@@ -66,12 +66,22 @@ export const getPublicResource = async (slug) => {
 export const getAdminResources = async () => db.listResources();
 export const createResource = async (data) => db.createResource({ ...data, slug: slugify(data.slug || data.title, { lower: true, strict: true }), status: "DRAFT" });
 export const updateResource = async (id, data) => {
+  const existing = await db.findResource(id);
+  if (!existing) throw new NotFoundError("Resource not found");
   const update = { ...data };
   if (data.title && !data.slug) update.slug = slugify(data.title, { lower: true, strict: true });
   if (data.status === "PUBLISHED") update.publishedAt = new Date();
   if (data.status && data.status !== "PUBLISHED") update.publishedAt = null;
-  try { return await db.updateResource(id, update); }
-  catch (error) { if (error?.code === "P2025") throw new NotFoundError("Resource not found"); throw error; }
+  const updated = await db.updateResource(id, update);
+  if (data.filePublicId && data.filePublicId !== existing.filePublicId) {
+    try { await deleteMedia({ publicId: existing.filePublicId, resourceType: existing.fileResourceType || "raw" }); }
+    catch (error) { console.error("[site-content] Failed to remove replaced PDF from Cloudinary", error); }
+  }
+  if (data.coverImagePublicId && existing.coverImagePublicId && data.coverImagePublicId !== existing.coverImagePublicId) {
+    try { await deleteMedia({ publicId: existing.coverImagePublicId, resourceType: "image" }); }
+    catch (error) { console.error("[site-content] Failed to remove replaced resource cover from Cloudinary", error); }
+  }
+  return updated;
 };
 export const deleteResource = async (id) => {
   const existing = await db.findResource(id);
