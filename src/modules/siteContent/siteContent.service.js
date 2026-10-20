@@ -98,7 +98,7 @@ export const deleteResource = async (id) => {
   const existing = await db.findResource(id);
   if (!existing) throw new NotFoundError("Resource not found");
   const deleted = await db.deleteResource(id);
-  try { await deleteMedia({ publicId: existing.filePublicId, resourceType: existing.fileResourceType || "raw" }); }
+  try { await deleteMedia({ publicId: existing.filePublicId, resourceType: existing.fileResourceType || "image" }); }
   catch (error) { console.error("[site-content] Failed to remove PDF from Cloudinary", error); }
   if (existing.coverImagePublicId) {
     try { await deleteMedia({ publicId: existing.coverImagePublicId, resourceType: "image" }); }
