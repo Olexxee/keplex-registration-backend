@@ -22,7 +22,13 @@ app.set("trust proxy", 1);
 
 app.use(globalRateLimiter);
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      frameSrc: ["\u0027self\u0027", "https://res.cloudinary.com"],
+    },
+  },
+}));
 
 // ============================================================
 // CORS
