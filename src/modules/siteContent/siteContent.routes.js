@@ -23,7 +23,7 @@ router.post("/admin/hero", ...admin, validateBody(heroSchema), controller.create
 router.patch("/admin/hero/:id", ...admin, validateParams(idParamsSchema), validateBody(heroSchema.partial()), controller.updateHero);
 router.post("/admin/hero/:id/publish", ...admin, validateParams(idParamsSchema), controller.publishHero);
 
-// Uploads use dedicated allowlists and size limits; PDFs are stored as raw Cloudinary assets.
+// Uploads use dedicated allowlists and size limits; PDFs use an explicit Cloudinary image asset type for PDF delivery.
 router.post("/admin/uploads/hero-image", ...admin, uploadSiteImage, uploadController.uploadHeroImage);
 router.post("/admin/uploads/gallery-image", ...admin, uploadSiteImage, uploadController.uploadGalleryImage);
 router.post("/admin/uploads/resource-pdf", ...admin, uploadResourcePdf, uploadController.uploadResourceFile);
