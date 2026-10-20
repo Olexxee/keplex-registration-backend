@@ -6,7 +6,9 @@ export const getPublicHero = async () => db.findPublishedHero();
 export const getAdminHeroes = async () => db.listHeroes();
 export const createHero = async (data) => db.createHero(data);
 export const updateHero = async (id, data) => {
-  if (!(await db.findHero(id))) throw new NotFoundError("Hero version not found");
+  const existing = await db.findHero(id);
+  if (!existing) throw new NotFoundError("Hero version not found");
+  if (existing.status === "PUBLISHED") throw new BadRequestError("Published hero versions are immutable. Create a new draft and publish it when ready.");
   return db.updateHero(id, data);
 };
 export const publishHero = async (id) => {
@@ -18,9 +20,7 @@ export const getPublicCategories = async () => db.listPublicCategories();
 export const getAdminCategories = async () => db.listCategories();
 export const createCategory = async (data) => db.createCategory(data);
 export const updateCategory = async (id, data) => {
-  if (!(await db.findCategory?.(id))) {
-    // Existence is enforced by Prisma for update; use the standard not-found response below.
-  }
+  if (!(await db.findCategory(id))) throw new NotFoundError("Gallery category not found");
   try { return await db.updateCategory(id, data); }
   catch (error) { if (error?.code === "P2025") throw new NotFoundError("Gallery category not found"); throw error; }
 };
