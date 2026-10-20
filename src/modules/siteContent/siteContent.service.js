@@ -26,8 +26,14 @@ export const updateCategory = async (id, data) => {
   catch (error) { if (error?.code === "P2025") throw new NotFoundError("Gallery category not found"); throw error; }
 };
 export const deleteCategory = async (id) => {
-  try { return await db.deleteCategory(id); }
-  catch (error) { if (error?.code === "P2025") throw new NotFoundError("Gallery category not found"); throw error; }
+  const existing = await db.findCategory(id);
+  if (!existing) throw new NotFoundError("Gallery category not found");
+  const deleted = await db.deleteCategory(id);
+  for (const image of existing.images) {
+    try { await deleteMedia({ publicId: image.publicId, resourceType: "image" }); }
+    catch (error) { console.error("[site-content] Failed to remove gallery asset after category deletion", error); }
+  }
+  return deleted;
 };
 export const getPublicGallery = async (query = {}) => {
   const where = {};
