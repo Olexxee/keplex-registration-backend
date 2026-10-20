@@ -1,5 +1,7 @@
 import express from "express";
 import * as controller from "./siteContent.controller.js";
+import * as uploadController from "./siteContent.upload.controller.js";
+import { uploadSiteImage, uploadResourcePdf } from "./siteContent.upload.js";
 import { authMiddleware } from "../../middlewares/authMiddleware.js";
 import { roleMiddleware } from "../../middlewares/roleMiddleware.js";
 import { validateBody, validateParams, validateQuery } from "../../middlewares/validateMiddleware.js";
@@ -20,6 +22,11 @@ router.get("/admin/hero", ...admin, controller.getAdminHeroes);
 router.post("/admin/hero", ...admin, validateBody(heroSchema), controller.createHero);
 router.patch("/admin/hero/:id", ...admin, validateParams(idParamsSchema), validateBody(heroSchema.partial()), controller.updateHero);
 router.post("/admin/hero/:id/publish", ...admin, validateParams(idParamsSchema), controller.publishHero);
+
+// Uploads use dedicated allowlists and size limits; PDFs are stored as raw Cloudinary assets.
+router.post("/admin/uploads/hero-image", ...admin, uploadSiteImage, uploadController.uploadHeroImage);
+router.post("/admin/uploads/gallery-image", ...admin, uploadSiteImage, uploadController.uploadGalleryImage);
+router.post("/admin/uploads/resource-pdf", ...admin, uploadResourcePdf, uploadController.uploadResourceFile);
 
 // Gallery categories and images
 router.get("/admin/gallery/categories", ...admin, controller.getAdminCategories);
