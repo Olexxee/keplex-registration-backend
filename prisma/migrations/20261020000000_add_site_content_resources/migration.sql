@@ -62,7 +62,7 @@ CREATE TABLE "Resource" (
   "description" TEXT,
   "fileUrl" TEXT NOT NULL,
   "filePublicId" TEXT NOT NULL,
-  "fileResourceType" TEXT NOT NULL DEFAULT 'raw',
+  "fileResourceType" TEXT NOT NULL DEFAULT 'image',
   "fileFormat" TEXT NOT NULL DEFAULT 'pdf',
   "fileBytes" INTEGER NOT NULL,
   "pageCount" INTEGER,
