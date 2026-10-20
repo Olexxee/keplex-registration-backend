@@ -15,6 +15,7 @@ router.get("/hero", controller.getPublicHero);
 router.get("/gallery/categories", controller.getPublicCategories);
 router.get("/gallery", validateQuery(galleryQuerySchema), controller.getPublicGallery);
 router.get("/resources", validateQuery(resourceQuerySchema), controller.getPublicResources);
+router.get("/resources/:slug/download", validateParams(slugParamsSchema), controller.downloadPublicResource);
 router.get("/resources/:slug", validateParams(slugParamsSchema), controller.getPublicResource);
 
 // Admin hero drafts are versioned so edits never replace the live hero until publish.
