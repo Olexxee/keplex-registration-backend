@@ -1004,3 +1004,18 @@ Unauthorized copying, distribution, modification, or commercial use is not permi
 The backend is actively developed and hardened for production deployment.
 
 Built for **Keplex**.
+
+
+## Site content, gallery, and learning resources
+
+Apply the new database migration with the existing deployment step (`npm run prisma:migrate`) and regenerate Prisma Client (`npm run prisma:generate`) before starting the updated API.
+
+Public content endpoints are mounted under `/api/site-content`:
+- `GET /hero` — active published homepage hero.
+- `GET /gallery/categories` and `GET /gallery?category=<slug>` — published gallery categories and images.
+- `GET /resources?search=<term>` and `GET /resources/:slug` — published PDF resource catalogue and resource detail.
+- `GET /resources/:slug/download` — attachment download for a published PDF.
+
+All routes under `/admin` require the existing admin access token and the `ADMIN` or `SUPER_ADMIN` role. Upload endpoints are `POST /admin/uploads/hero-image`, `POST /admin/uploads/gallery-image`, and `POST /admin/uploads/resource-pdf`; each accepts multipart field `file`. Images are limited to 15 MB and PDFs to 50 MB. PDF uploads use Cloudinary's `image` resource type for browser reading and are checked for a PDF signature. Cloudinary may block PDF delivery by default on Free environments; enable PDF delivery in the product environment's Security settings before publishing manuals.
+
+Create hero drafts and publish them explicitly. Publishing archives the previous live version, so drafting or editing a draft does not change the public homepage. Gallery images and resources also remain private to the admin API until published. Resource PDFs are served from Cloudinary; the public site provides an online reader and a direct download link.

@@ -34,7 +34,7 @@ export const updateProductSchema = createProductSchema.partial();
 export const createColorOptionSchema = z.object({
   name: z.string().trim().min(1).max(80),
   colorHex: hexColor,
-  swatchImageUrl: z.string().url().optional().nullable(),
+  swatchImageUrl: z.url().optional().nullable(),
   swatchPublicId: z.string().trim().max(255).optional().nullable(),
   displayOrder: z.coerce.number().int().min(0).optional().default(0),
 });
@@ -67,7 +67,7 @@ export const updateColorOptionSchema = createColorOptionSchema.partial();
 export const setActiveSchema = z.object({ active: z.boolean() });
 
 export const createProductMediaSchema = z.object({
-  url: z.string().url(),
+  url: z.url(),
   publicId: z.string().trim().min(1).max(255),
   altText: z.string().trim().max(300).optional().nullable(),
   isPrimary: z.boolean().optional().default(false),
@@ -89,8 +89,8 @@ export const selectedColorOptionIdsSchema = z.array(z.string().trim().min(1))
 
 const guestContact = {
   customerName: z.string().trim().min(2).max(100),
-  customerEmail: z.string().trim().email().max(254).transform((value) => value.toLowerCase()),
-  customerWhatsApp: z.string().trim().min(7).max(30).regex(/^\+?[0-9 ()-]+$/, "Enter a valid WhatsApp number"),
+  customerEmail: z.email().trim().max(254).transform((value) => value.toLowerCase()),
+  customerWhatsApp: z.string().trim().min(7).max(30).regex(/^\\+?[0-9 ()-]+$/, "Enter a valid WhatsApp number"),
 };
 
 export const createSouvenirOrderSchema = z.object({
