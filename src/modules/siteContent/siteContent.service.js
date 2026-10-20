@@ -2,6 +2,7 @@ import slugify from "slugify";
 import { BadRequestError, NotFoundError } from "../../classes/errorClasses.js";
 import * as db from "./siteContent.db.js";
 import { deleteMedia } from "../../lib/cloudinaryMedia.js";
+import { cloudinary } from "../../config/cloudinary.js";
 
 export const getPublicHero = async () => db.findPublishedHero();
 export const getAdminHeroes = async () => db.listHeroes();
@@ -73,6 +74,10 @@ export const getPublicResource = async (slug) => {
   const resource = await db.findPublicResource(slug);
   if (!resource) throw new NotFoundError("Resource not found");
   return resource;
+};
+export const getPublicResourceDownloadUrl = async (slug) => {
+  const resource = await getPublicResource(slug);
+  return cloudinary.url(resource.filePublicId, { resource_type: "image", secure: true, flags: "attachment", format: "pdf" });
 };
 export const getAdminResources = async () => db.listResources();
 export const createResource = async (data) => db.createResource({ ...data, slug: slugify(data.slug || data.title, { lower: true, strict: true }), status: "DRAFT" });
