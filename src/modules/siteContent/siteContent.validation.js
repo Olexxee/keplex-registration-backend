@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const optionalUrl = z.string().trim().url().max(2000).nullable().optional();
+const ctaUrl = z.string().trim().max(500).refine((value) => (value.startsWith("/") && !value.startsWith("//")) || /^https?:\\/\\//i.test(value), "CTA URL must be a relative path or HTTP(S) URL").nullable().optional();
 export const idParamsSchema = z.object({ id: z.string().trim().min(1) });
 export const slugParamsSchema = z.object({ slug: z.string().trim().min(1) });
 export const heroSchema = z.object({
@@ -9,9 +10,9 @@ export const heroSchema = z.object({
   highlightText: z.string().trim().max(180).nullable().optional(),
   description: z.string().trim().min(10).max(1000),
   primaryCtaLabel: z.string().trim().max(80).nullable().optional(),
-  primaryCtaUrl: z.string().trim().max(500).nullable().optional(),
+  primaryCtaUrl: ctaUrl,
   secondaryCtaLabel: z.string().trim().max(80).nullable().optional(),
-  secondaryCtaUrl: z.string().trim().max(500).nullable().optional(),
+  secondaryCtaUrl: ctaUrl,
   imageUrl: optionalUrl,
   imagePublicId: z.string().trim().max(500).nullable().optional(),
   imageAltText: z.string().trim().max(300).nullable().optional(),
