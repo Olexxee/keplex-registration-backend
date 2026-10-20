@@ -1,6 +1,7 @@
 import slugify from "slugify";
 import { BadRequestError, NotFoundError } from "../../classes/errorClasses.js";
 import * as db from "./siteContent.db.js";
+import { deleteMedia } from "../../lib/cloudinaryMedia.js";
 
 export const getPublicHero = async () => db.findPublishedHero();
 export const getAdminHeroes = async () => db.listHeroes();
@@ -44,8 +45,12 @@ export const updateGalleryImage = async (id, data) => {
   catch (error) { if (error?.code === "P2025") throw new NotFoundError("Gallery image not found"); throw error; }
 };
 export const deleteGalleryImage = async (id) => {
-  try { return await db.deleteGalleryImage(id); }
-  catch (error) { if (error?.code === "P2025") throw new NotFoundError("Gallery image not found"); throw error; }
+  const existing = await db.findGalleryImage(id);
+  if (!existing) throw new NotFoundError("Gallery image not found");
+  const deleted = await db.deleteGalleryImage(id);
+  try { await deleteMedia({ publicId: existing.publicId, resourceType: "image" }); }
+  catch (error) { console.error("[site-content] Failed to remove gallery asset from Cloudinary", error); }
+  return deleted;
 };
 export const getPublicResources = async (query = {}) => {
   const where = {};
@@ -69,6 +74,14 @@ export const updateResource = async (id, data) => {
   catch (error) { if (error?.code === "P2025") throw new NotFoundError("Resource not found"); throw error; }
 };
 export const deleteResource = async (id) => {
-  try { return await db.deleteResource(id); }
-  catch (error) { if (error?.code === "P2025") throw new NotFoundError("Resource not found"); throw error; }
+  const existing = await db.findResource(id);
+  if (!existing) throw new NotFoundError("Resource not found");
+  const deleted = await db.deleteResource(id);
+  try { await deleteMedia({ publicId: existing.filePublicId, resourceType: existing.fileResourceType || "raw" }); }
+  catch (error) { console.error("[site-content] Failed to remove PDF from Cloudinary", error); }
+  if (existing.coverImagePublicId) {
+    try { await deleteMedia({ publicId: existing.coverImagePublicId, resourceType: "image" }); }
+    catch (error) { console.error("[site-content] Failed to remove resource cover from Cloudinary", error); }
+  }
+  return deleted;
 };
