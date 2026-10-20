@@ -11,6 +11,7 @@ import testimonialRouter from "./modules/testimonials/testimonial.routes.js";
 import souvenirRouter from "./modules/souvenirs/souvenir.routes.js";
 import workshopRouter from "./modules/workshops/workshop.routes.js";
 import certificateRouter from "./modules/certificates/certificate.routes.js";
+import siteContentRouter from "./modules/siteContent/siteContent.routes.js";
 import {globalRateLimiter} from "./middlewares/rateLimitMiddleware.js"
 import { errorMiddleware } from "./middlewares/errorMiddleware.js";
 
@@ -100,6 +101,7 @@ app.use("/api/souvenirs", souvenirRouter);
 app.use("/api/workshops", workshopRouter);
 app.use("/api/certificates", certificateRouter);
 app.use("/api/payments", paymentRouter);
+app.use("/api/site-content", siteContentRouter);
 
 // ============================================================
 // 404
