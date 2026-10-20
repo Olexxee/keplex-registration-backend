@@ -24,6 +24,7 @@ export const updateCategory = (id, data, tx = prisma) => tx.GalleryCategory.upda
 export const deleteCategory = (id, tx = prisma) => tx.GalleryCategory.delete({ where: { id } });
 export const listPublicGallery = (where = {}, tx = prisma) => tx.GalleryImage.findMany({ where: { status: "PUBLISHED", ...where, category: { active: true } }, include: { category: { select: { id: true, name: true, slug: true } } }, orderBy: [{ featured: "desc" }, { displayOrder: "asc" }, { createdAt: "desc" }] });
 export const listGallery = (tx = prisma) => tx.GalleryImage.findMany({ include: { category: { select: { id: true, name: true, slug: true } } }, orderBy: [{ displayOrder: "asc" }, { createdAt: "desc" }] });
+export const findGalleryImage = (id, tx = prisma) => tx.GalleryImage.findUnique({ where: { id } });
 export const createGalleryImage = (data, tx = prisma) => tx.GalleryImage.create({ data, include: { category: true } });
 export const updateGalleryImage = (id, data, tx = prisma) => tx.GalleryImage.update({ where: { id }, data, include: { category: true } });
 export const deleteGalleryImage = (id, tx = prisma) => tx.GalleryImage.delete({ where: { id } });
