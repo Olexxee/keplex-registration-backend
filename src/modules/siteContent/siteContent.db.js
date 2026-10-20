@@ -17,6 +17,7 @@ export const listPublicCategories = (tx = prisma) => tx.GalleryCategory.findMany
   orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
   include: { images: { where: { status: "PUBLISHED" }, orderBy: [{ displayOrder: "asc" }, { createdAt: "desc" }] } },
 });
+export const findCategory = (id, tx = prisma) => tx.GalleryCategory.findUnique({ where: { id } });
 export const listCategories = (tx = prisma) => tx.GalleryCategory.findMany({ orderBy: [{ displayOrder: "asc" }, { name: "asc" }], include: { _count: { select: { images: true } } } });
 export const createCategory = (data, tx = prisma) => tx.GalleryCategory.create({ data });
 export const updateCategory = (id, data, tx = prisma) => tx.GalleryCategory.update({ where: { id }, data });
