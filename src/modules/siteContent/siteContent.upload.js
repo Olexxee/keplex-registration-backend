@@ -40,5 +40,5 @@ export const uploadPdfAsset = async (file) => {
   if (file.buffer.length < 5 || file.buffer.subarray(0, 5).toString("ascii") !== "%PDF-") {
     throw new BadRequestError("The uploaded file is not a valid PDF document");
   }
-  return uploadBuffer({ buffer: file.buffer, folder: "kpx/resources", resourceType: "raw", publicId: `${randomUUID()}.pdf` });
+  return uploadBuffer({ buffer: file.buffer, folder: "kpx/resources", resourceType: "image", publicId: randomUUID() });
 };
