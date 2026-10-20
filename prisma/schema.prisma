@@ -698,7 +698,7 @@ model Resource {
   description String?
   fileUrl String
   filePublicId String
-  fileResourceType String @default("raw")
+  fileResourceType String @default("image")
   fileFormat String @default("pdf")
   fileBytes Int
   pageCount Int?
