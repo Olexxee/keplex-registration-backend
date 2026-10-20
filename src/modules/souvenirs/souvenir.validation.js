@@ -3,6 +3,23 @@ import { z } from "zod";
 const optionalText = z.string().trim().max(5000).optional().nullable();
 const hexColor = z.string().trim().regex(/^#[0-9A-Fa-f]{6}$/, "Colour must be a six-digit hex value, e.g. #722F37");
 
+
+const priceTierFields = z.object({
+  label: z.string().trim().min(1).max(120),
+  minQuantity: z.coerce.number().int().min(1),
+  maxQuantity: z.coerce.number().int().min(1).optional().nullable(),
+  totalPrice: z.coerce.number().positive().max(9999999999.99),
+  currency: z
+    .string()
+    .trim()
+    .length(3)
+    .transform((value) => value.toUpperCase())
+    .default("NGN"),
+  displayOrder: z.coerce.number().int().min(0).optional().default(0),
+});
+
+
+
 export const createProductSchema = z.object({
   name: z.string().trim().min(2).max(200),
   slug: z.string().trim().min(2).max(220).optional(),
@@ -21,25 +38,33 @@ export const createColorOptionSchema = z.object({
   swatchPublicId: z.string().trim().max(255).optional().nullable(),
   displayOrder: z.coerce.number().int().min(0).optional().default(0),
 });
+
+export const createPriceTierSchema = priceTierFields.refine(
+  (value) =>
+    value.maxQuantity == null || value.maxQuantity >= value.minQuantity,
+  {
+    message:
+      "Maximum quantity must be greater than or equal to minimum quantity",
+    path: ["maxQuantity"],
+  },
+);
+
+export const updatePriceTierSchema = priceTierFields
+  .partial()
+  .refine(
+    (value) =>
+      value.maxQuantity == null ||
+      value.minQuantity == null ||
+      value.maxQuantity >= value.minQuantity,
+    {
+      message:
+        "Maximum quantity must be greater than or equal to minimum quantity",
+      path: ["maxQuantity"],
+    },
+  );
 export const updateColorOptionSchema = createColorOptionSchema.partial();
 
 export const setActiveSchema = z.object({ active: z.boolean() });
-
-export const createPriceTierSchema = z.object({
-  label: z.string().trim().min(1).max(120),
-  minQuantity: z.coerce.number().int().min(1),
-  maxQuantity: z.coerce.number().int().min(1).optional().nullable(),
-  totalPrice: z.coerce.number().positive().max(9999999999.99),
-  currency: z.string().trim().length(3).transform((value) => value.toUpperCase()).default("NGN"),
-  displayOrder: z.coerce.number().int().min(0).optional().default(0),
-}).refine((value) => value.maxQuantity == null || value.maxQuantity >= value.minQuantity, {
-  message: "Maximum quantity must be greater than or equal to minimum quantity",
-  path: ["maxQuantity"],
-});
-export const updatePriceTierSchema = createPriceTierSchema.partial().refine(
-  (value) => value.maxQuantity == null || value.minQuantity == null || value.maxQuantity >= value.minQuantity,
-  { message: "Maximum quantity must be greater than or equal to minimum quantity", path: ["maxQuantity"] },
-);
 
 export const createProductMediaSchema = z.object({
   url: z.string().url(),
