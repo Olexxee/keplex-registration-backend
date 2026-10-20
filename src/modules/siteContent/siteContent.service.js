@@ -85,7 +85,7 @@ export const updateResource = async (id, data) => {
   if (data.status && data.status !== "PUBLISHED") update.publishedAt = null;
   const updated = await db.updateResource(id, update);
   if (data.filePublicId && data.filePublicId !== existing.filePublicId) {
-    try { await deleteMedia({ publicId: existing.filePublicId, resourceType: existing.fileResourceType || "raw" }); }
+    try { await deleteMedia({ publicId: existing.filePublicId, resourceType: existing.fileResourceType || "image" }); }
     catch (error) { console.error("[site-content] Failed to remove replaced PDF from Cloudinary", error); }
   }
   if (data.coverImagePublicId && existing.coverImagePublicId && data.coverImagePublicId !== existing.coverImagePublicId) {
