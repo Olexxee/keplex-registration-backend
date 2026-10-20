@@ -10,7 +10,12 @@ export const updateHero = async (id, data) => {
   const existing = await db.findHero(id);
   if (!existing) throw new NotFoundError("Hero version not found");
   if (existing.status === "PUBLISHED") throw new BadRequestError("Published hero versions are immutable. Create a new draft and publish it when ready.");
-  return db.updateHero(id, data);
+  const updated = await db.updateHero(id, data);
+  if (data.imagePublicId && existing.imagePublicId && data.imagePublicId !== existing.imagePublicId) {
+    try { await deleteMedia({ publicId: existing.imagePublicId, resourceType: "image" }); }
+    catch (error) { console.error("[site-content] Failed to remove replaced hero image from Cloudinary", error); }
+  }
+  return updated;
 };
 export const publishHero = async (id) => {
   const hero = await db.publishHero(id);
