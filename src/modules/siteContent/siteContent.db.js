@@ -22,7 +22,7 @@ export const listCategories = (tx = prisma) => tx.GalleryCategory.findMany({ ord
 export const createCategory = (data, tx = prisma) => tx.GalleryCategory.create({ data });
 export const updateCategory = (id, data, tx = prisma) => tx.GalleryCategory.update({ where: { id }, data });
 export const deleteCategory = (id, tx = prisma) => tx.GalleryCategory.delete({ where: { id } });
-export const listPublicGallery = (where = {}, tx = prisma) => tx.GalleryImage.findMany({ where: { status: "PUBLISHED", ...where, category: { active: true } }, include: { category: { select: { id: true, name: true, slug: true } } }, orderBy: [{ featured: "desc" }, { displayOrder: "asc" }, { createdAt: "desc" }] });
+export const listPublicGallery = (where = {}, tx = prisma) => tx.GalleryImage.findMany({ where: { status: "PUBLISHED", ...where, category: { active: true, ...(where.category ?? {}) } }, include: { category: { select: { id: true, name: true, slug: true } } }, orderBy: [{ featured: "desc" }, { displayOrder: "asc" }, { createdAt: "desc" }] });
 export const listGallery = (tx = prisma) => tx.GalleryImage.findMany({ include: { category: { select: { id: true, name: true, slug: true } } }, orderBy: [{ displayOrder: "asc" }, { createdAt: "desc" }] });
 export const findGalleryImage = (id, tx = prisma) => tx.GalleryImage.findUnique({ where: { id } });
 export const createGalleryImage = (data, tx = prisma) => tx.GalleryImage.create({ data, include: { category: true } });
