@@ -1,4 +1,4 @@
-import express from "express";\nimport { siteBrandingSchema } from "./siteContent.validation.js";
+import express from "express";
 import * as controller from "./siteContent.controller.js";
 import * as founderController from "./founder.controller.js";
 import * as heroSlidesController from "./heroSlides.controller.js";
@@ -7,7 +7,7 @@ import { uploadSiteImage, uploadResourcePdf } from "./siteContent.upload.js";
 import { authMiddleware } from "../../middlewares/authMiddleware.js";
 import { roleMiddleware } from "../../middlewares/roleMiddleware.js";
 import { validateBody, validateParams, validateQuery } from "../../middlewares/validateMiddleware.js";
-import { idParamsSchema, slugParamsSchema, founderProfileSchema, heroSchema, categorySchema, galleryImageSchema, resourceSchema, statusSchema, galleryQuerySchema, resourceQuerySchema } from "./siteContent.validation.js";
+import { idParamsSchema, slugParamsSchema, founderProfileSchema, heroSchema, categorySchema, galleryImageSchema, resourceSchema, statusSchema, galleryQuerySchema, resourceQuerySchema, siteBrandingSchema } from "./siteContent.validation.js";
 
 const router = express.Router();
 const admin = [authMiddleware, roleMiddleware("ADMIN", "SUPER_ADMIN")];
@@ -36,7 +36,8 @@ router.patch("/admin/hero/:id", ...admin, validateParams(idParamsSchema), valida
 router.post("/admin/hero/:id/publish", ...admin, validateParams(idParamsSchema), controller.publishHero);
 
 // Uploads use dedicated allowlists and size limits; PDFs use an explicit Cloudinary image asset type for PDF delivery.
-router.post("/admin/uploads/logo", ...admin, uploadSiteImage, uploadController.uploadLogo);\nrouter.post("/admin/uploads/hero-image", ...admin, uploadSiteImage, uploadController.uploadHeroImage);
+router.post("/admin/uploads/logo", ...admin, uploadSiteImage, uploadController.uploadLogo);
+router.post("/admin/uploads/hero-image", ...admin, uploadSiteImage, uploadController.uploadHeroImage);
 router.post("/admin/uploads/gallery-image", ...admin, uploadSiteImage, uploadController.uploadGalleryImage);
 router.post("/admin/uploads/resource-pdf", ...admin, uploadResourcePdf, uploadController.uploadResourceFile);
 
