@@ -101,7 +101,6 @@ export const getPublicResourceViewUrl = async (slug) => {
   return cloudinary.url(resource.filePublicId, {
     resource_type: resource.fileResourceType || "image",
     secure: true,
-    flags: "inline",
     format: resource.fileFormat || "pdf",
   });
 };
