@@ -54,7 +54,7 @@ const polygon = (points, color, stroke = false, lineWidth = 1) => {
     ...rest.map(([x, y]) => `${x} ${y} l`),
     "h",
   ].join(" ");
-  return `q ${color} ${stroke ? "RG" : "rg"} ${lineWidth} w ${path} ${stroke ? "S" : "f"} Q\\n`;
+  return `q ${color} ${stroke ? "RG" : "rg"} ${lineWidth} w ${path} ${stroke ? "S" : "f"} Q\n`;
 };
 
 const starburst = (cx, cy, outerRadius, innerRadius, points, color) => {
