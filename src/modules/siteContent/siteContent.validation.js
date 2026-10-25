@@ -56,3 +56,9 @@ export const resourceSchema = z.object({
 export const statusSchema = z.object({ status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]) });
 export const galleryQuerySchema = z.object({ category: z.string().trim().optional(), featured: z.coerce.boolean().optional() });
 export const resourceQuerySchema = z.object({ search: z.string().trim().max(150).optional(), program: z.string().trim().optional() });
+
+export const siteBrandingSchema = z.object({
+  logoUrl: optionalUrl,
+  logoPublicId: z.string().trim().max(500).nullable().optional(),
+  logoAltText: z.string().trim().max(300).nullable().optional(),
+});
