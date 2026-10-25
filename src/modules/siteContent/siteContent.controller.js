@@ -108,11 +108,11 @@ export const getPublicResource = asyncWrapper(async (req, res) =>
     await service.getPublicResource(req.validated.params.slug),
   ),
 );
+export const viewPublicResource = asyncWrapper(async (req, res) =>
+  res.redirect(302, await service.getPublicResourceViewUrl(req.validated.params.slug)),
+);
 export const downloadPublicResource = asyncWrapper(async (req, res) =>
-  res.redirect(
-    302,
-    await service.getPublicResourceDownloadUrl(req.validated.params.slug),
-  ),
+  res.redirect(302, await service.getPublicResourceDownloadUrl(req.validated.params.slug)),
 );
 export const getAdminResources = asyncWrapper(async (_req, res) =>
   ok(res, "Resources retrieved", await service.getAdminResources()),
