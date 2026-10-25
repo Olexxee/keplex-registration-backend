@@ -17,7 +17,8 @@ router.get("/founder", founderController.getFounderProfile);
 router.patch("/admin/founder", ...admin, validateBody(founderProfileSchema), founderController.updateFounderProfile);
 
 // Public routes
-router.get("/hero", controller.getPublicHero);\nrouter.get("/hero/slides", heroSlidesController.getPublicHeroSlides);
+router.get("/hero", controller.getPublicHero);
+router.get("/hero/slides", heroSlidesController.getPublicHeroSlides);
 router.get("/gallery/categories", controller.getPublicCategories);
 router.get("/gallery", validateQuery(galleryQuerySchema), controller.getPublicGallery);
 router.get("/resources", validateQuery(resourceQuerySchema), controller.getPublicResources);
