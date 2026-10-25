@@ -36,7 +36,7 @@ const circle = (x, y, radius, color, stroke = false, lineWidth = 1) => {
     `${x + radius} ${y - k} ${x + k} ${y - radius} ${x} ${y - radius} c`,
     `${x - k} ${y - radius} ${x - radius} ${y - k} ${x - radius} ${y} c h`,
   ].join(" ");
-  return `q ${color} ${stroke ? "RG" : "rg"} ${lineWidth} w ${path} ${stroke ? "S" : "f"} Q\\n`;
+  return `q ${color} ${stroke ? "RG" : "rg"} ${lineWidth} w ${path} ${stroke ? "S" : "f"} Q`;
 };
 
 const formatDate = (value) =>
