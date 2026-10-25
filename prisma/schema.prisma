@@ -834,3 +834,12 @@ enum CertificateStatus {
   ISSUED
   REVOKED
 }
+
+
+model SiteBranding {
+  id          String   @id @default("site-branding")
+  logoUrl     String?
+  logoPublicId String?
+  logoAltText String?
+  updatedAt   DateTime @updatedAt
+}

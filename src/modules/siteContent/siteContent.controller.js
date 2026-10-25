@@ -140,3 +140,11 @@ export const deleteResource = asyncWrapper(async (req, res) =>
     await service.deleteResource(req.validated.params.id),
   ),
 );
+
+
+export const getSiteBranding = asyncWrapper(async (_req, res) =>
+  ok(res, "Site branding retrieved", await service.getSiteBranding()),
+);
+export const updateSiteBranding = asyncWrapper(async (req, res) =>
+  ok(res, "Site branding updated", await service.updateSiteBranding(req.validated.body)),
+);

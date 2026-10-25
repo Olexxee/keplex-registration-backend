@@ -46,3 +46,8 @@ export const findResource = (id, tx = prisma) => tx.Resource.findUnique({ where:
 export const createResource = (data, tx = prisma) => tx.Resource.create({ data });
 export const updateResource = (id, data, tx = prisma) => tx.Resource.update({ where: { id }, data, include: { trainingProgram: { select: { title: true, slug: true } } } });
 export const deleteResource = (id, tx = prisma) => tx.Resource.delete({ where: { id } });
+
+
+const siteBrandingId = "site-branding";
+export const getSiteBranding = (tx = prisma) => tx.SiteBranding.findUnique({ where: { id: siteBrandingId } });
+export const upsertSiteBranding = (data, tx = prisma) => tx.SiteBranding.upsert({ where: { id: siteBrandingId }, create: { id: siteBrandingId, ...data }, update: data });

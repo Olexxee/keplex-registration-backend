@@ -132,3 +132,17 @@ export const deleteResource = async (id) => {
   }
   return deleted;
 };
+
+
+export const getSiteBranding = async () => (await db.getSiteBranding()) ?? {
+  id: "site-branding", logoUrl: null, logoPublicId: null, logoAltText: null,
+};
+export const updateSiteBranding = async (data) => {
+  const existing = await db.getSiteBranding();
+  const updated = await db.upsertSiteBranding(data);
+  if (data.logoPublicId && existing?.logoPublicId && data.logoPublicId !== existing.logoPublicId) {
+    try { await deleteMedia({ publicId: existing.logoPublicId, resourceType: "image" }); }
+    catch (error) { console.error("[site-content] Failed to remove replaced logo from Cloudinary", error); }
+  }
+  return updated;
+};
