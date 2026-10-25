@@ -186,28 +186,44 @@ const createAndEmailCertificate = async ({
 
   let emailSent = false;
   let emailError = null;
+  let emailStatusPersisted = false;
+  let emailSentAt = null;
+
   try {
     await sendCertificateEmail({ certificate, pdfBuffer });
-    await db.updateCertificate(certificate.id, {
-      emailSentAt: new Date(),
-      lastEmailError: null,
-    });
     emailSent = true;
+    emailSentAt = new Date();
+
+    try {
+      await db.updateCertificate(certificate.id, {
+        emailSentAt,
+        lastEmailError: null,
+      });
+      emailStatusPersisted = true;
+    } catch (persistenceError) {
+      emailError = "Email was accepted by the provider, but its status could not be saved.";
+      console.error("[certificates] Email accepted but certificate status update failed:", persistenceError);
+    }
   } catch (error) {
     emailError = error.message;
-    await db.updateCertificate(certificate.id, {
-      lastEmailError: error.message.slice(0, 1000),
-    });
+    try {
+      await db.updateCertificate(certificate.id, {
+        lastEmailError: error.message.slice(0, 1000),
+      });
+    } catch (persistenceError) {
+      console.error("[certificates] Could not save certificate email failure:", persistenceError);
+    }
   }
 
   return {
     certificate: {
       ...certificate,
-      emailSentAt: emailSent ? new Date() : null,
+      emailSentAt: emailStatusPersisted ? emailSentAt : null,
       lastEmailError: emailError,
     },
     emailSent,
     emailError,
+    emailStatusPersisted,
   };
 };
 
