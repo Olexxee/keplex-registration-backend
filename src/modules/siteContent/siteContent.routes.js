@@ -1,4 +1,4 @@
-import express from "express";
+import express from "express";\nimport { siteBrandingSchema } from "./siteContent.validation.js";
 import * as controller from "./siteContent.controller.js";
 import * as founderController from "./founder.controller.js";
 import * as heroSlidesController from "./heroSlides.controller.js";
@@ -11,6 +11,10 @@ import { idParamsSchema, slugParamsSchema, founderProfileSchema, heroSchema, cat
 
 const router = express.Router();
 const admin = [authMiddleware, roleMiddleware("ADMIN", "SUPER_ADMIN")];
+
+// Global site branding and founder profile.
+router.get("/branding", controller.getSiteBranding);
+router.patch("/admin/branding", ...admin, validateBody(siteBrandingSchema), controller.updateSiteBranding);
 
 // Founder profile: public read, authenticated admin edit.
 router.get("/founder", founderController.getFounderProfile);
@@ -32,7 +36,7 @@ router.patch("/admin/hero/:id", ...admin, validateParams(idParamsSchema), valida
 router.post("/admin/hero/:id/publish", ...admin, validateParams(idParamsSchema), controller.publishHero);
 
 // Uploads use dedicated allowlists and size limits; PDFs use an explicit Cloudinary image asset type for PDF delivery.
-router.post("/admin/uploads/hero-image", ...admin, uploadSiteImage, uploadController.uploadHeroImage);
+router.post("/admin/uploads/logo", ...admin, uploadSiteImage, uploadController.uploadLogo);\nrouter.post("/admin/uploads/hero-image", ...admin, uploadSiteImage, uploadController.uploadHeroImage);
 router.post("/admin/uploads/gallery-image", ...admin, uploadSiteImage, uploadController.uploadGalleryImage);
 router.post("/admin/uploads/resource-pdf", ...admin, uploadResourcePdf, uploadController.uploadResourceFile);
 
