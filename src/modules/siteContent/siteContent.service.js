@@ -96,9 +96,23 @@ export const getPublicResource = async (slug) => {
   if (!resource) throw new NotFoundError("Resource not found");
   return resource;
 };
+export const getPublicResourceViewUrl = async (slug) => {
+  const resource = await getPublicResource(slug);
+  return cloudinary.url(resource.filePublicId, {
+    resource_type: resource.fileResourceType || "image",
+    secure: true,
+    flags: "inline",
+    format: resource.fileFormat || "pdf",
+  });
+};
 export const getPublicResourceDownloadUrl = async (slug) => {
   const resource = await getPublicResource(slug);
-  return cloudinary.url(resource.filePublicId, { resource_type: "image", secure: true, flags: "attachment", format: "pdf" });
+  return cloudinary.url(resource.filePublicId, {
+    resource_type: resource.fileResourceType || "image",
+    secure: true,
+    flags: "attachment",
+    format: resource.fileFormat || "pdf",
+  });
 };
 export const getAdminResources = async () => db.listResources();
 export const createResource = async (data) => db.createResource({ ...data, slug: slugify(data.slug || data.title, { lower: true, strict: true }), status: "DRAFT" });
