@@ -24,7 +24,8 @@ export const updateFounderProfile = async (data) => {
   return updated;
 };
 
-export const getPublicHero = async () => db.findPublishedHero();\nexport const getPublicHeroSlides = async () => db.listPublishedHeroes();
+export const getPublicHero = async () => db.findPublishedHero();
+export const getPublicHeroSlides = async () => db.listPublishedHeroes();
 export const getAdminHeroes = async () => db.listHeroes();
 export const createHero = async (data) => db.createHero(data);
 export const updateHero = async (id, data) => {
