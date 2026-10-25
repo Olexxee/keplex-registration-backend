@@ -186,28 +186,44 @@ const createAndEmailCertificate = async ({
 
   let emailSent = false;
   let emailError = null;
+  let emailStatusPersisted = false;
+  let emailSentAt = null;
+
   try {
     await sendCertificateEmail({ certificate, pdfBuffer });
-    await db.updateCertificate(certificate.id, {
-      emailSentAt: new Date(),
-      lastEmailError: null,
-    });
     emailSent = true;
+    emailSentAt = new Date();
+
+    try {
+      await db.updateCertificate(certificate.id, {
+        emailSentAt,
+        lastEmailError: null,
+      });
+      emailStatusPersisted = true;
+    } catch (persistenceError) {
+      emailError = "Email was accepted by the provider, but its status could not be saved.";
+      console.error("[certificates] Email accepted but certificate status update failed:", persistenceError);
+    }
   } catch (error) {
     emailError = error.message;
-    await db.updateCertificate(certificate.id, {
-      lastEmailError: error.message.slice(0, 1000),
-    });
+    try {
+      await db.updateCertificate(certificate.id, {
+        lastEmailError: error.message.slice(0, 1000),
+      });
+    } catch (persistenceError) {
+      console.error("[certificates] Could not save certificate email failure:", persistenceError);
+    }
   }
 
   return {
     certificate: {
       ...certificate,
-      emailSentAt: emailSent ? new Date() : null,
+      emailSentAt: emailStatusPersisted ? emailSentAt : null,
       lastEmailError: emailError,
     },
     emailSent,
     emailError,
+    emailStatusPersisted,
   };
 };
 
@@ -302,19 +318,35 @@ export const resendCertificate = async (id) => {
     throw new BadRequestError("A revoked certificate cannot be emailed.");
   }
 
+  const pdfBuffer = createPdfForCertificate(certificate);
   try {
-    const pdfBuffer = createPdfForCertificate(certificate);
     await sendCertificateEmail({ certificate, pdfBuffer });
+  } catch (error) {
+    try {
+      await db.updateCertificate(id, {
+        lastEmailError: error.message.slice(0, 1000),
+      });
+    } catch (persistenceError) {
+      console.error("[certificates] Could not save resend failure:", persistenceError);
+    }
+    throw new BadRequestError(`Certificate exists, but the email provider rejected the request: ${error.message}`);
+  }
+
+  const emailSentAt = new Date();
+  try {
     const updated = await db.updateCertificate(id, {
-      emailSentAt: new Date(),
+      emailSentAt,
       lastEmailError: null,
     });
-    return { certificate: updated, emailSent: true };
-  } catch (error) {
-    await db.updateCertificate(id, {
-      lastEmailError: error.message.slice(0, 1000),
-    });
-    throw new BadRequestError(`Certificate exists, but email delivery failed: ${error.message}`);
+    return { certificate: updated, emailSent: true, emailStatusPersisted: true, warning: null };
+  } catch (persistenceError) {
+    console.error("[certificates] Email accepted but resend status update failed:", persistenceError);
+    return {
+      certificate,
+      emailSent: true,
+      emailStatusPersisted: false,
+      warning: "The email provider accepted the certificate email, but the delivery status could not be saved.",
+    };
   }
 };
 

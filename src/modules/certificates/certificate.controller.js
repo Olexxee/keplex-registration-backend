@@ -31,8 +31,10 @@ export const issueFromSubmission = asyncWrapper(async (req, res) => {
   return res.status(201).json({
     success: true,
     message: result.emailSent
-      ? "Certificate issued and emailed successfully."
-      : "Certificate issued, but email delivery failed. Use resend after configuring email delivery.",
+      ? result.emailStatusPersisted === false
+        ? "Certificate issued and email accepted, but the email status could not be saved."
+        : "Certificate issued and email accepted by the provider."
+      : "Certificate issued, but email delivery failed. Use resend after checking email configuration.",
     data: result,
   });
 });
@@ -42,8 +44,10 @@ export const issueDirectly = asyncWrapper(async (req, res) => {
   return res.status(201).json({
     success: true,
     message: result.emailSent
-      ? "Certificate issued and emailed successfully."
-      : "Certificate issued, but email delivery failed. Use resend after configuring email delivery.",
+      ? result.emailStatusPersisted === false
+        ? "Certificate issued and email accepted, but the email status could not be saved."
+        : "Certificate issued and email accepted by the provider."
+      : "Certificate issued, but email delivery failed. Use resend after checking email configuration.",
     data: result,
   });
 });
@@ -60,7 +64,11 @@ export const getCertificate = asyncWrapper(async (req, res) => {
 
 export const resendCertificate = asyncWrapper(async (req, res) => {
   const data = await service.resendCertificate(req.validated.params.id);
-  return res.json({ success: true, message: "Certificate email sent.", data });
+  return res.json({
+    success: true,
+    message: data.warning || "Certificate email accepted by the provider.",
+    data,
+  });
 });
 
 export const revokeCertificate = asyncWrapper(async (req, res) => {
