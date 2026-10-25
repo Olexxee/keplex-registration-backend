@@ -4,6 +4,13 @@ const optionalUrl = z.string().trim().url().max(2000).nullable().optional();
 const ctaUrl = z.string().trim().max(500).refine((value) => (value.startsWith("/") && !value.startsWith("//")) || /^https?:\/\//i.test(value), "CTA URL must be a relative path or HTTP(S) URL").nullable().optional();
 export const idParamsSchema = z.object({ id: z.string().trim().min(1) });
 export const slugParamsSchema = z.object({ slug: z.string().trim().min(1) });
+export const founderProfileSchema = z.object({
+  name: z.string().trim().min(2).max(160).optional(),
+  role: z.string().trim().min(2).max(120).optional(),
+  mediaUrl: optionalUrl,
+  mediaPublicId: z.string().trim().max(500).nullable().optional(),
+  mediaAltText: z.string().trim().max(300).nullable().optional(),
+});
 export const heroSchema = z.object({
   eyebrow: z.string().trim().max(120).nullable().optional(),
   heading: z.string().trim().min(3).max(180),

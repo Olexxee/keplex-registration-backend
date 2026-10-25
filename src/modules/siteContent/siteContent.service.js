@@ -4,7 +4,27 @@ import * as db from "./siteContent.db.js";
 import { deleteMedia } from "../../lib/cloudinaryMedia.js";
 import { cloudinary } from "../../config/cloudinary.js";
 
-export const getPublicHero = async () => db.findPublishedHero();
+export const getFounderProfile = async () => {
+  return (await db.getFounderProfile()) ?? {
+    id: "founder-profile",
+    name: "Kepemi Oluwafunke (Keplex)",
+    role: "Founder",
+    mediaUrl: null,
+    mediaPublicId: null,
+    mediaAltText: null,
+  };
+};
+export const updateFounderProfile = async (data) => {
+  const existing = await db.getFounderProfile();
+  const updated = await db.upsertFounderProfile(data);
+  if (data.mediaPublicId && existing?.mediaPublicId && data.mediaPublicId !== existing.mediaPublicId) {
+    try { await deleteMedia({ publicId: existing.mediaPublicId, resourceType: "image" }); }
+    catch (error) { console.error("[site-content] Failed to remove replaced founder image from Cloudinary", error); }
+  }
+  return updated;
+};
+
+export const getPublicHero = async () => db.findPublishedHero();\nexport const getPublicHeroSlides = async () => db.listPublishedHeroes();
 export const getAdminHeroes = async () => db.listHeroes();
 export const createHero = async (data) => db.createHero(data);
 export const updateHero = async (id, data) => {
