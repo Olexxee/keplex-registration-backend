@@ -13,3 +13,8 @@ export const uploadResourceFile = asyncWrapper(async (req, res) => {
   const asset = await uploadPdfAsset(req.file);
   return res.status(201).json({ success: true, message: "PDF resource uploaded", data: asset });
 });
+
+export const uploadLogo = asyncWrapper(async (req, res) => {
+  const asset = await uploadImageAsset(req.file, "kpx/branding");
+  return res.status(201).json({ success: true, message: "Logo uploaded", data: asset });
+});
