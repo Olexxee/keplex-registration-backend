@@ -657,6 +657,16 @@ model HomepageHero {
   @@index([status, publishedAt])
 }
 
+model FounderProfile {
+  id String @id @default("founder-profile")
+  name String @default("Kepemi Oluwafunke (Keplex)")
+  role String @default("Founder")
+  mediaUrl String?
+  mediaPublicId String?
+  mediaAltText String?
+  updatedAt DateTime @updatedAt
+}
+
 model GalleryCategory {
   id String @id @default(cuid())
   name String
