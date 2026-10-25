@@ -8,7 +8,7 @@ export const upsertFounderProfile = (data, tx = prisma) => tx.FounderProfile.ups
   update: data,
 });
 
-export const findPublishedHero = (tx = prisma) => tx.HomepageHero.findFirst({ where: { status: "PUBLISHED" }, orderBy: { publishedAt: "desc" } });
+export const findPublishedHero = (tx = prisma) => tx.HomepageHero.findFirst({ where: { status: "PUBLISHED" }, orderBy: [{ displayOrder: "asc" }, { publishedAt: "desc" }] });\nexport const listPublishedHeroes = (tx = prisma) => tx.HomepageHero.findMany({ where: { status: "PUBLISHED" }, orderBy: [{ displayOrder: "asc" }, { publishedAt: "desc" }] });
 export const listHeroes = (tx = prisma) => tx.HomepageHero.findMany({ orderBy: { updatedAt: "desc" } });
 export const findHero = (id, tx = prisma) => tx.HomepageHero.findUnique({ where: { id } });
 export const createHero = (data, tx = prisma) => tx.HomepageHero.create({ data });
