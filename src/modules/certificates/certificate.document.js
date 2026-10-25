@@ -11,7 +11,7 @@ const pdfText = (value) =>
     .replace(/\)/g, "\\)");
 
 const textCommand = (text, x, y, size, font = "F1", color = "0.09 0.20 0.30") =>
-  `BT /CS ${color} cs /CS ${color} CS /F1 10 Tf ET\nBT /${font} ${size} Tf ${color} rg ${x} ${y} Td (${pdfText(text)}) Tj ET\n`;
+  `BT /${font} ${size} Tf ${color} rg ${x} ${y} Td (${pdfText(text)}) Tj ET\n`;
 
 const centeredText = (text, y, size, font = "F1", color = "0.09 0.20 0.30") => {
   const safeText = String(text ?? "");
