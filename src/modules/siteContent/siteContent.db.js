@@ -1,5 +1,13 @@
 import { prisma } from "../../config/prisma.js";
 
+const founderProfileId = "founder-profile";
+export const getFounderProfile = (tx = prisma) => tx.FounderProfile.findUnique({ where: { id: founderProfileId } });
+export const upsertFounderProfile = (data, tx = prisma) => tx.FounderProfile.upsert({
+  where: { id: founderProfileId },
+  create: { id: founderProfileId, ...data },
+  update: data,
+});
+
 export const findPublishedHero = (tx = prisma) => tx.HomepageHero.findFirst({ where: { status: "PUBLISHED" }, orderBy: { publishedAt: "desc" } });
 export const listHeroes = (tx = prisma) => tx.HomepageHero.findMany({ orderBy: { updatedAt: "desc" } });
 export const findHero = (id, tx = prisma) => tx.HomepageHero.findUnique({ where: { id } });
