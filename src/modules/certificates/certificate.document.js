@@ -47,6 +47,29 @@ const formatDate = (value) =>
     timeZone: "UTC",
   });
 
+const polygon = (points, color, stroke = false, lineWidth = 1) => {
+  const [first, ...rest] = points;
+  const path = [
+    `${first[0]} ${first[1]} m`,
+    ...rest.map(([x, y]) => `${x} ${y} l`),
+    "h",
+  ].join(" ");
+  return `q ${color} ${stroke ? "RG" : "rg"} ${lineWidth} w ${path} ${stroke ? "S" : "f"} Q\\n`;
+};
+
+const starburst = (cx, cy, outerRadius, innerRadius, points, color) => {
+  const vertices = [];
+  for (let i = 0; i < points * 2; i += 1) {
+    const angle = -Math.PI / 2 + (Math.PI * i) / points;
+    const radius = i % 2 === 0 ? outerRadius : innerRadius;
+    vertices.push([
+      Number((cx + Math.cos(angle) * radius).toFixed(2)),
+      Number((cy + Math.sin(angle) * radius).toFixed(2)),
+    ]);
+  }
+  return polygon(vertices, color);
+};
+
 export const createCertificatePdf = ({
   studentName,
   trainingProgramTitle,
@@ -54,76 +77,101 @@ export const createCertificatePdf = ({
   issuedAt,
 }) => {
   const name = String(studentName ?? "").trim();
-  const programme = String(trainingProgramTitle ?? "").trim();
-  const nameSize = Math.min(30, Math.max(18, 30 - Math.max(0, name.length - 24) * 0.45));
-  const programmeSize = Math.min(19, Math.max(13, 19 - Math.max(0, programme.length - 32) * 0.22));
+  const programme = String(trainingProgramTitle ?? "").trim().toUpperCase();
   const date = formatDate(issuedAt);
+  const nameSize = Math.min(30, Math.max(18, 30 - Math.max(0, name.length - 24) * 0.45));
+  const programmeSize = Math.min(21, Math.max(13, 21 - Math.max(0, programme.length - 30) * 0.28));
+  const description = `In recognition of the foundational knowledge and practical skills demonstrated in ${String(trainingProgramTitle ?? "").trim().toLowerCase()}, including an understanding of its materials, tools, and techniques. Following the successful review and approval of the required practical work, the recipient has met KPX Academy's requirements for certification.`;
 
   const content = [
-    // Warm ivory paper with a restrained navy, teal and gold institutional frame.
-    rectangle(0, 0, 842, 595, "0.969 0.961 0.941"),
-    rectangle(18, 18, 806, 559, "0.09 0.20 0.30", true, 3),
-    rectangle(29, 29, 784, 537, "0.17 0.50 0.50", true, 1),
-    rectangle(42, 42, 758, 511, "0.83 0.66 0.35", true, 0.7),
+    // Clean white paper; a restrained branded ribbon anchors the left edge.
+    rectangle(0, 0, 842, 595, "1 1 1"),
+    rectangle(0, 0, 92, 595, "0.09 0.20 0.30"),
+    rectangle(80, 0, 14, 595, "0.17 0.50 0.50"),
+    rectangle(87, 0, 3, 595, "0.83 0.66 0.35"),
+    rectangle(94, 0, 3, 595, "0.17 0.50 0.50"),
 
-    // Corner ornaments.
-    line(42, 95, 82, 55, "0.83 0.66 0.35", 2),
-    line(42, 55, 82, 95, "0.83 0.66 0.35", 2),
-    line(760, 95, 800, 55, "0.83 0.66 0.35", 2),
-    line(760, 55, 800, 95, "0.83 0.66 0.35", 2),
-    line(42, 500, 82, 540, "0.83 0.66 0.35", 2),
-    line(42, 540, 82, 500, "0.83 0.66 0.35", 2),
-    line(760, 500, 800, 540, "0.83 0.66 0.35", 2),
-    line(760, 540, 800, 500, "0.83 0.66 0.35", 2),
+    // Dramatic angular right-hand panel, matching the supplied reference.
+    polygon([[690, 595], [842, 595], [842, 0], [744, 0], [685, 210], [735, 280], [690, 355]], "0.08 0.09 0.10"),
+    polygon([[718, 595], [744, 595], [842, 300], [842, 238], [763, 410]], "0.17 0.50 0.50"),
+    polygon([[754, 595], [771, 595], [842, 415], [842, 374]], "0.20 0.22 0.23"),
+    polygon([[785, 595], [842, 595], [842, 520]], "0.04 0.05 0.06"),
 
-    // Academy wordmark and ornamental medallion.
-    centeredText("KPX ACADEMY", 520, 18, "F2", "0.09 0.20 0.30"),
-    centeredText("PRACTICAL SKILLS. MORE POSSIBILITIES.", 500, 7.5, "F1", "0.17 0.50 0.50"),
-    line(350, 484, 492, 484, "0.83 0.66 0.35", 1.2),
-    circle(421, 484, 3, "0.83 0.66 0.35"),
+    // Ribbon and award medallion.
+    rectangle(39, 595, 20, -116, "0.17 0.50 0.50"),
+    rectangle(47, 595, 4, -116, "0.83 0.66 0.35"),
+    polygon([[39, 510], [26, 486], [43, 491], [49, 470], [59, 492], [76, 486], [59, 511]], "0.17 0.50 0.50"),
+    polygon([[40, 510], [49, 493], [49, 470], [55, 492], [59, 511]], "0.83 0.66 0.35"),
+    starburst(49, 510, 49, 43, 20, "0.05 0.39 0.39"),
+    circle(49, 510, 37, "0.83 0.66 0.35"),
+    circle(49, 510, 31, "0.95 0.78 0.35"),
+    circle(49, 510, 26, "0.91 0.68 0.18"),
+    circle(49, 510, 22, "0.98 0.83 0.42", true, 1.2),
 
-    centeredText("CERTIFICATE", 446, 29, "F2", "0.09 0.20 0.30"),
-    centeredText("OF COMPLETION", 421, 12, "F2", "0.17 0.50 0.50"),
-    centeredText("This certificate is proudly presented to", 382, 11, "F1", "0.25 0.29 0.31"),
-    centeredText(name, 339, nameSize, "F2", "0.09 0.20 0.30"),
-    line(170, 326, 672, 326, "0.83 0.66 0.35", 1.2),
-    centeredText("for successfully completing the training programme in", 299, 11, "F1", "0.25 0.29 0.31"),
-    centeredText(programme, 268, programmeSize, "F2", "0.17 0.50 0.50"),
+    // Wordmark plaque.
+    rectangle(540, 465, 145, 68, "1 1 1"),
+    rectangle(540, 465, 145, 68, "0.86 0.87 0.86", true, 1),
+    centeredText("KPX", 493, 25, "F2", "0.09 0.20 0.30"),
+    centeredText("A C A D E M Y", 476, 8, "F1", "0.17 0.50 0.50"),
 
-    // Formal credential details and signature lines.
-    line(100, 205, 742, 205, "0.83 0.66 0.35", 0.8),
-    centeredText("AWARDED BY KPX ACADEMY", 184, 8, "F2", "0.09 0.20 0.30"),
-    textCommand("DATE ISSUED", 104, 139, 7, "F2", "0.17 0.50 0.50"),
-    textCommand(date, 104, 121, 10, "F1", "0.09 0.20 0.30"),
-    textCommand("AUTHENTICITY REFERENCE", 558, 139, 7, "F2", "0.17 0.50 0.50"),
-    textCommand(certificateNumber, 558, 121, 9, "F2", "0.09 0.20 0.30"),
-    line(104, 101, 275, 101, "0.09 0.20 0.30", 0.8),
-    line(558, 101, 729, 101, "0.09 0.20 0.30", 0.8),
-    centeredText("ACADEMY AUTHORISATION", 86, 7, "F1", "0.35 0.38 0.39"),
-    centeredText("Verify this credential at kpxacademy.com.ng using the authenticity reference above.", 61, 7.5, "F1", "0.25 0.29 0.31"),
+    // Certificate title and recipient.
+    textCommand("CERTIFICATE", 572, 49, 0, "F2", "0.09 0.20 0.30"),
+    textCommand("CERTIFICATE", 572, 39, "F2", "0.09 0.20 0.30"),
+    textCommand("OF COMPLETION", 538, 18, "F2", "0.17 0.50 0.50"),
+    textCommand("This certificate is proudly presented to:", 510, 11, "F1", "0.25 0.25 0.25"),
+    textCommand(name, 450, nameSize, "F3", "0.15 0.15 0.15"),
+    line(186, 438, 615, 438, "0.16 0.16 0.16", 1),
+    circle(186, 438, 1.7, "0.16 0.16 0.16"),
+    circle(615, 438, 1.7, "0.16 0.16 0.16"),
+
+    textCommand("for successfully completing the", 405, 11, "F1", "0.25 0.25 0.25"),
+    textCommand(programme, 366, programmeSize, "F2", "0.09 0.20 0.30"),
+
+    // Supporting achievement statement with safe line lengths.
+    textCommand("In recognition of the foundational knowledge and practical skills", 336, 10, "F1", "0.25 0.25 0.25"),
+    textCommand("demonstrated in the programme, including an understanding of its", 320, 10, "F1", "0.25 0.25 0.25"),
+    textCommand("materials, tools, and techniques. Following successful review and", 304, 10, "F1", "0.25 0.25 0.25"),
+    textCommand("approval of the required practical work, the recipient has met", 288, 10, "F1", "0.25 0.25 0.25"),
+    textCommand("KPX Academy's requirements for certification.", 272, 10, "F1", "0.25 0.25 0.25"),
+
+    // Signature areas: no fabricated signature image is presented as genuine.
+    textCommand("Authorised by", 166, 8, "F1", "0.35 0.35 0.35"),
+    line(186, 151, 340, 151, "0.12 0.12 0.12", 0.8),
+    textCommand("Kepemi Oluwafunke (Keplex)", 132, 10, "F2", "0.15 0.15 0.15"),
+    textCommand("Founder, KPX Academy", 113, 9, "F1", "0.30 0.30 0.30"),
+
+    textCommand("Date of issue", 166, 8, "F1", "0.35 0.35 0.35"),
+    line(545, 151, 660, 151, "0.12 0.12 0.12", 0.8),
+    textCommand(date, 132, 10, "F2", "0.15 0.15 0.15"),
+
+    // Verification reference stays legible and can be checked through the public API.
+    textCommand(`Certificate ID: ${certificateNumber}`, 66, 10, "F3", "0.30 0.30 0.30"),
+    textCommand("kpxacademy.com.ng", 66, 9, "F3", "0.30 0.30 0.30"),
+    textCommand("PRACTICAL SKILLS. MORE POSSIBILITIES.", 26, 7, "F1", "0.17 0.50 0.50"),
   ].join("");
 
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /Font << /F1 4 0 R /F2 5 0 R /F3 6 0 R >> >> /Contents 7 0 R >>",
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
-    `<< /Length ${Buffer.byteLength(content, "ascii")} >>\nstream\n${content}endstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >>",
+    `<< /Length ${Buffer.byteLength(content, "ascii")} >>\\nstream\\n${content}endstream`,
   ];
 
-  let pdf = "%PDF-1.4\n";
+  let pdf = "%PDF-1.4\\n";
   const offsets = [0];
   for (let i = 0; i < objects.length; i += 1) {
     offsets.push(Buffer.byteLength(pdf, "ascii"));
-    pdf += `${i + 1} 0 obj\n${objects[i]}\nendobj\n`;
+    pdf += `${i + 1} 0 obj\\n${objects[i]}\\nendobj\\n`;
   }
   const xrefOffset = Buffer.byteLength(pdf, "ascii");
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  pdf += `xref\\n0 ${objects.length + 1}\\n0000000000 65535 f \\n`;
   for (const offset of offsets.slice(1)) {
-    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \\n`;
   }
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  pdf += `trailer\\n<< /Size ${objects.length + 1} /Root 1 0 R >>\\nstartxref\\n${xrefOffset}\\n%%EOF`;
   return Buffer.from(pdf, "ascii");
 };
 
