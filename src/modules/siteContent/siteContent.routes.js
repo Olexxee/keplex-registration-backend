@@ -1,6 +1,7 @@
 import express from "express";
 import * as controller from "./siteContent.controller.js";
 import * as founderController from "./founder.controller.js";
+import * as heroSlidesController from "./heroSlides.controller.js";
 import * as uploadController from "./siteContent.upload.controller.js";
 import { uploadSiteImage, uploadResourcePdf } from "./siteContent.upload.js";
 import { authMiddleware } from "../../middlewares/authMiddleware.js";
