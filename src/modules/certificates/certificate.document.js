@@ -27,8 +27,17 @@ const line = (x1, y1, x2, y2, color = "0.83 0.66 0.35", width = 1) =>
 const rectangle = (x, y, width, height, color, stroke = false, lineWidth = 1) =>
   `q ${color} ${stroke ? "RG" : "rg"} ${lineWidth} w ${x} ${y} ${width} ${height} re ${stroke ? "S" : "f"} Q\n`;
 
-const circle = (x, y, radius, color, stroke = false, lineWidth = 1) =>
-  `q ${color} ${stroke ? "RG" : "rg"} ${lineWidth} w ${x - radius} ${y} m ${x - radius} ${y + radius * 0.5523} ${x - radius * 0.5523} ${y + radius} ${x} ${y + radius} c ${x + radius * 0.5523} ${y + radius} ${x + radius} ${y + radius * 0.5523} ${x + radius} ${y} c ${x + radius} ${y - radius * 0.5523} ${x + radius * 0.5523} ${y - radius} ${x} ${y - radius} c ${x - radius * 0.5523} ${y - radius} ${x - radius} ${y - radius * 0.5523} ${x - radius} ${y} c ${x - radius} ${y + radius * 0.5523} ${x - radius * 0.5523} ${y + radius} ${x} ${y + radius} c h ${stroke ? "S" : "f"} Q\n`;
+const circle = (x, y, radius, color, stroke = false, lineWidth = 1) => {
+  const k = radius * 0.5523;
+  const path = [
+    `${x - radius} ${y} m`,
+    `${x - radius} ${y + k} ${x - k} ${y + radius} ${x} ${y + radius} c`,
+    `${x + k} ${y + radius} ${x + radius} ${y + k} ${x + radius} ${y} c`,
+    `${x + radius} ${y - k} ${x + k} ${y - radius} ${x} ${y - radius} c`,
+    `${x - k} ${y - radius} ${x - radius} ${y - k} ${x - radius} ${y} c h`,
+  ].join(" ");
+  return `q ${color} ${stroke ? "RG" : "rg"} ${lineWidth} w ${path} ${stroke ? "S" : "f"} Q\\n`;
+};
 
 const formatDate = (value) =>
   new Date(value).toLocaleDateString("en-GB", {
