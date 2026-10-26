@@ -137,6 +137,7 @@ export const deleteResource = async (id) => {
   return deleted;
 };
 
+
 export const getSiteBranding = async () => (await db.getSiteBranding()) ?? {
   id: "site-branding", logoUrl: null, logoPublicId: null, logoAltText: null,
 };
