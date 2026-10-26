@@ -26,6 +26,7 @@ router.get("/hero/slides", heroSlidesController.getPublicHeroSlides);
 router.get("/gallery/categories", controller.getPublicCategories);
 router.get("/gallery", validateQuery(galleryQuerySchema), controller.getPublicGallery);
 router.get("/resources", validateQuery(resourceQuerySchema), controller.getPublicResources);
+router.get("/resources/:slug/view", validateParams(slugParamsSchema), controller.viewPublicResource);
 router.get("/resources/:slug/download", validateParams(slugParamsSchema), controller.downloadPublicResource);
 router.get("/resources/:slug", validateParams(slugParamsSchema), controller.getPublicResource);
 
