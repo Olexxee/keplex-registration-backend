@@ -19,6 +19,9 @@ export const updateGalleryImage = asyncWrapper(async (req, res) => ok(res, "Gall
 export const deleteGalleryImage = asyncWrapper(async (req, res) => ok(res, "Gallery image deleted", await service.deleteGalleryImage(req.validated.params.id)));
 export const getPublicResources = asyncWrapper(async (req, res) => ok(res, "Resources retrieved", await service.getPublicResources(req.validated.query)));
 export const getPublicResource = asyncWrapper(async (req, res) => ok(res, "Resource retrieved", await service.getPublicResource(req.validated.params.slug)));
+export const viewPublicResource = asyncWrapper(async (req, res) =>
+  res.redirect(302, await service.getPublicResourceViewUrl(req.validated.params.slug)),
+);
 export const downloadPublicResource = asyncWrapper(async (req, res) => res.redirect(302, await service.getPublicResourceDownloadUrl(req.validated.params.slug)));
 export const getAdminResources = asyncWrapper(async (_req, res) => ok(res, "Resources retrieved", await service.getAdminResources()));
 export const createResource = asyncWrapper(async (req, res) => res.status(201).json({ success: true, message: "Resource created as draft", data: await service.createResource(req.validated.body) }));
