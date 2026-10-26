@@ -96,6 +96,10 @@ export const getPublicResource = async (slug) => {
   if (!resource) throw new NotFoundError("Resource not found");
   return resource;
 };
+export const getPublicResourceViewUrl = async (slug) => {
+  const resource = await getPublicResource(slug);
+  return cloudinary.url(resource.filePublicId, { resource_type: "image", secure: true, format: "pdf" });
+};
 export const getPublicResourceDownloadUrl = async (slug) => {
   const resource = await getPublicResource(slug);
   return cloudinary.url(resource.filePublicId, { resource_type: "image", secure: true, flags: "attachment", format: "pdf" });
@@ -132,7 +136,6 @@ export const deleteResource = async (id) => {
   }
   return deleted;
 };
-
 
 export const getSiteBranding = async () => (await db.getSiteBranding()) ?? {
   id: "site-branding", logoUrl: null, logoPublicId: null, logoAltText: null,
