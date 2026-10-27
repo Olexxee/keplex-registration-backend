@@ -222,7 +222,7 @@ export const uploadProductMedia = async (productId, files = []) => {
     return created;
   } catch (error) {
     await Promise.all(uploadedAssets.map((asset) =>
-      deleteMedia({ publicId: asset.publicId, resourceType: "image" }).catch(() => {})
+      deleteMedia({ publicId: asset.publicId, resourceType: asset.resourceType ?? "image" }).catch(() => {})
     ));
     throw error;
   }
