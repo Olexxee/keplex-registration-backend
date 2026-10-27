@@ -72,6 +72,10 @@ export const createGuestSouvenirOrder = asyncWrapper(async (req, res) => {
   });
 });
 
+export const retryGuestSouvenirPayment = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.retryGuestSouvenirPayment(req.validated.params.token);
+  return res.json({ success: true, data });
+});
 export const getGuestSouvenirOrder = asyncWrapper(async (req, res) => {
   const data = await souvenirService.getGuestSouvenirOrder(req.validated.params.token);
   return res.json({ success: true, data });
