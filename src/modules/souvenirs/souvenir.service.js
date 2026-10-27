@@ -193,6 +193,9 @@ export const uploadProductMedia = async (productId, files = []) => {
   await requireProduct(productId);
   if (!files.length) throw new BadRequestError("Select at least one package reference image");
   if (files.length > 10) throw new BadRequestError("A maximum of 10 package images can be uploaded at once");
+  if (files.some((file) => !file.mimetype?.startsWith("image/"))) {
+    throw new BadRequestError("Package reference media must be image files");
+  }
 
   const uploadedAssets = [];
   try {
