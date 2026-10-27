@@ -313,10 +313,17 @@ export const createGuestSouvenirOrder = async (data) => {
     return souvenirDb.findSouvenirOrderById(created.id, tx);
   });
 
-  const payment = await paymentService.initializeSouvenirPayment({ orderId: order.id, accessToken });
+  let payment = null;
+  let paymentError = null;
+  try {
+    payment = await paymentService.initializeSouvenirPayment({ orderId: order.id, accessToken });
+  } catch {
+    paymentError = "Secure checkout could not be initialized. Keep your private order link and retry payment shortly.";
+  }
 
   return {
     payment,
+    paymentError,
     order: {
       publicReference: order.publicReference,
       productName: order.productNameSnapshot,
@@ -329,6 +336,16 @@ export const createGuestSouvenirOrder = async (data) => {
     accessToken,
     accessUrlPath: `/api/souvenirs/orders/access/${accessToken}`,
   };
+};
+
+export const retryGuestSouvenirPayment = async (token) => {
+  const accessTokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const order = await souvenirDb.findOrderByTokenHash(accessTokenHash);
+  if (!order) throw new NotFoundError("Souvenir order not found");
+  if (order.status === "PAID" || order.status === "IN_PRODUCTION" || order.status === "READY" || order.status === "FULFILLED") {
+    throw new ConflictError("This souvenir order has already been paid or is being fulfilled");
+  }
+  return paymentService.initializeSouvenirPayment({ orderId: order.id, accessToken: token });
 };
 
 export const getGuestSouvenirOrder = async (token) => {
