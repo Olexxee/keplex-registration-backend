@@ -215,15 +215,18 @@ export const uploadProductMedia = async (productId, files = []) => {
       });
     }
 
-    const created = [];
-    for (const asset of uploadedAssets) {
-      created.push(await souvenirDb.createProductMedia(asset));
-    }
-    if (!(await souvenirDb.findProductById(productId)).media.some((item) => item.isPrimary) && created.length) {
-      await souvenirDb.clearPrimaryProductMedia(productId);
-      created[0] = await souvenirDb.updateProductMedia(created[0].id, { isPrimary: true });
-    }
-    return created;
+    return await prisma.$transaction(async (tx) => {
+      const created = [];
+      for (const asset of uploadedAssets) {
+        created.push(await souvenirDb.createProductMedia(asset, tx));
+      }
+      const current = await souvenirDb.findProductById(productId, tx);
+      if (!current.media.some((item) => item.isPrimary) && created.length) {
+        await souvenirDb.clearPrimaryProductMedia(productId, tx);
+        created[0] = await souvenirDb.updateProductMedia(created[0].id, { isPrimary: true }, tx);
+      }
+      return created;
+    });
   } catch (error) {
     await Promise.all(uploadedAssets.map((asset) =>
       deleteMedia({ publicId: asset.publicId, resourceType: asset.resourceType ?? "image" }).catch(() => {})
