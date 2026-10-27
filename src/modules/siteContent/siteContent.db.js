@@ -14,6 +14,7 @@ export const listHeroes = (tx = prisma) => tx.HomepageHero.findMany({ orderBy: {
 export const findHero = (id, tx = prisma) => tx.HomepageHero.findUnique({ where: { id } });
 export const createHero = (data, tx = prisma) => tx.HomepageHero.create({ data });
 export const updateHero = (id, data, tx = prisma) => tx.HomepageHero.update({ where: { id }, data });
+export const deleteHero = (id, tx = prisma) => tx.HomepageHero.delete({ where: { id } });
 export const publishHero = async (id, tx = prisma) => {
   const current = await tx.HomepageHero.findUnique({ where: { id } });
   if (!current) return null;
