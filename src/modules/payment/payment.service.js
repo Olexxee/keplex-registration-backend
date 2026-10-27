@@ -55,6 +55,18 @@ export const initializeSouvenirPayment = async ({ orderId, accessToken }) => {
   if (!order) throw new NotFoundError("Souvenir order not found");
   if (order.status !== "SUBMITTED" && order.status !== "AWAITING_PAYMENT") throw new BadRequestError("This souvenir order is not awaiting payment");
   if (order.currency !== "NGN") throw new BadRequestError("Only NGN payments are currently supported");
+  const pendingPayment = await paymentDb.findPendingSouvenirPayment(order.id);
+  if (pendingPayment?.authorizationUrl) {
+    return {
+      paymentId: pendingPayment.id,
+      reference: pendingPayment.reference,
+      authorizationUrl: pendingPayment.authorizationUrl,
+      accessCode: pendingPayment.accessCode,
+      amount: pendingPayment.amount,
+      currency: pendingPayment.currency,
+    };
+  }
+  if (pendingPayment) throw new BadRequestError("Secure checkout is still being prepared. Try again shortly.");
   const amountInMinorUnits = toMinorUnits(order.totalPriceSnapshot);
   if (amountInMinorUnits <= 0) throw new BadRequestError("Souvenir order amount must be greater than zero");
   const payment = await paymentDb.createPayment({
