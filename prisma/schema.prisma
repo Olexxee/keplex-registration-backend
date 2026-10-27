@@ -163,7 +163,8 @@ model Registration {
 model Payment {
   id String @id @default(cuid())
 
-  registrationId String
+  registrationId  String?
+  souvenirOrderId String?
 
   provider          PaymentProvider @default(PAYSTACK)
   reference         String          @unique
@@ -182,9 +183,11 @@ model Payment {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  registration  Registration?  @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  souvenirOrder SouvenirOrder? @relation(fields: [souvenirOrderId], references: [id], onDelete: Cascade)
 
   @@index([registrationId])
+  @@index([souvenirOrderId])
   @@index([status, createdAt])
 }
 
@@ -312,6 +315,7 @@ model SouvenirOrder {
 
   product         SouvenirProduct      @relation(fields: [productId], references: [id], onDelete: Restrict)
   colorSelections SouvenirOrderColor[]
+  payments        Payment[]
 
   @@index([status, createdAt])
   @@index([customerEmail])

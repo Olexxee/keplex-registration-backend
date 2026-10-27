@@ -38,6 +38,11 @@ export const updateRegistration = (id, data, tx = prisma) =>
 
 export const createPayment = (data, tx = prisma) => tx.payment.create({ data });
 
+export const findPendingSouvenirPayment = (souvenirOrderId, tx = prisma) => tx.payment.findFirst({
+  where: { souvenirOrderId, status: "PENDING" },
+  orderBy: { createdAt: "desc" },
+});
+
 export const updatePayment = (id, data, tx = prisma) =>
   tx.payment.update({
     where: { id },
@@ -53,6 +58,7 @@ export const findPaymentByReference = (reference, tx = prisma) =>
           trainingProgram: true,
         },
       },
+      souvenirOrder: true,
     },
   });
 

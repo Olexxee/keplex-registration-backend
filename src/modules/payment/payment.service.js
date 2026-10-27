@@ -3,6 +3,7 @@ import { prisma } from "../../config/prisma.js";
 import { BadRequestError, NotFoundError } from "../../classes/errorClasses.js";
 import * as paymentDb from "./payment.db.js";
 import * as registrationService from "../registration/registration.service.js";
+import * as souvenirDb from "../souvenirs/souvenir.db.js";
 import {
   initializePaystackTransaction,
   verifyPaystackTransaction,
@@ -49,6 +50,50 @@ const getPaymentStatus = (status) => {
   }
 };
 
+export const initializeSouvenirPayment = async ({ orderId, accessToken }) => {
+  const order = await souvenirDb.findSouvenirOrderById(orderId);
+  if (!order) throw new NotFoundError("Souvenir order not found");
+  if (order.status !== "SUBMITTED" && order.status !== "AWAITING_PAYMENT") throw new BadRequestError("This souvenir order is not awaiting payment");
+  if (order.currency !== "NGN") throw new BadRequestError("Only NGN payments are currently supported");
+  const pendingPayment = await paymentDb.findPendingSouvenirPayment(order.id);
+  if (pendingPayment?.authorizationUrl) {
+    if (order.status === "SUBMITTED") {
+      await souvenirDb.updateSouvenirOrder(order.id, { status: "AWAITING_PAYMENT" });
+    }
+    return {
+      paymentId: pendingPayment.id,
+      reference: pendingPayment.reference,
+      authorizationUrl: pendingPayment.authorizationUrl,
+      accessCode: pendingPayment.accessCode,
+      amount: pendingPayment.amount,
+      currency: pendingPayment.currency,
+    };
+  }
+  if (pendingPayment) throw new BadRequestError("Secure checkout is still being prepared. Try again shortly.");
+  const amountInMinorUnits = toMinorUnits(order.totalPriceSnapshot);
+  if (amountInMinorUnits <= 0) throw new BadRequestError("Souvenir order amount must be greater than zero");
+  const payment = await paymentDb.createPayment({
+    souvenirOrderId: order.id, provider: "PAYSTACK",
+    reference: "KPX-SOUV-" + Date.now() + "-" + crypto.randomBytes(6).toString("hex"),
+    amount: order.totalPriceSnapshot, currency: order.currency, status: "PENDING",
+  });
+  try {
+    const result = await initializePaystackTransaction({
+      email: order.customerEmail, amount: String(amountInMinorUnits), currency: order.currency,
+      reference: payment.reference,
+      callback_url: process.env.FRONTEND_URL && accessToken
+        ? process.env.FRONTEND_URL.replace(/\/+$/, "") + "/souvenirs/orders/access/" + accessToken + "?reference=" + payment.reference
+        : process.env.PAYSTACK_CALLBACK_URL,
+      metadata: { paymentId: payment.id, souvenirOrderId: order.id, paymentType: "SOUVENIR_ORDER" },
+    });
+    await paymentDb.updatePayment(payment.id, { authorizationUrl: result.authorization_url, accessCode: result.access_code });
+    await souvenirDb.updateSouvenirOrder(order.id, { status: "AWAITING_PAYMENT" });
+    return { paymentId: payment.id, reference: payment.reference, authorizationUrl: result.authorization_url, accessCode: result.access_code, amount: payment.amount, currency: payment.currency };
+  } catch (error) {
+    await paymentDb.updatePayment(payment.id, { status: "FAILED" });
+    throw error;
+  }
+};
 export const initializePayment = async ({ name, email, trainingProgramId }) => {
   /*
    * Registration creation and validation now belongs
@@ -166,7 +211,8 @@ const applyVerifiedTransaction = async (reference, transaction) => {
       return {
         reference: payment.reference,
         status: payment.status,
-        registrationStatus: payment.registration.status,
+        registrationStatus: payment.registration?.status ?? null,
+        souvenirOrderStatus: payment.souvenirOrder?.status ?? null,
         alreadyProcessed: true,
       };
     }
@@ -194,32 +240,26 @@ const applyVerifiedTransaction = async (reference, transaction) => {
      * must happen inside the same Prisma transaction as the
      * payment update.
      */
-    let registrationStatus = payment.registration.status;
+    let registrationStatus = payment.registration?.status ?? null;
+    let souvenirOrderStatus = payment.souvenirOrder?.status ?? null;
 
-    if (status === "SUCCESS") {
-      const updatedRegistration =
-        await registrationService.markRegistrationPaid(
-          payment.registrationId,
-          tx,
-        );
-
+    if (payment.registrationId && status === "SUCCESS") {
+      const updatedRegistration = await registrationService.markRegistrationPaid(payment.registrationId, tx);
       registrationStatus = updatedRegistration.status;
-    } else if (status === "REVERSED") {
-      const updatedRegistration =
-        await registrationService.markRegistrationPending(
-          payment.registrationId,
-          tx,
-        );
-
+    } else if (payment.registrationId && status === "REVERSED") {
+      const updatedRegistration = await registrationService.markRegistrationPending(payment.registrationId, tx);
       registrationStatus = updatedRegistration.status;
     }
 
-    return {
-      reference: updatedPayment.reference,
-      status: updatedPayment.status,
-      registrationStatus,
-      alreadyProcessed: false,
-    };
+    if (payment.souvenirOrderId && status === "SUCCESS") {
+      const updatedOrder = await tx.souvenirOrder.update({ where: { id: payment.souvenirOrderId }, data: { status: "PAID" } });
+      souvenirOrderStatus = updatedOrder.status;
+    } else if (payment.souvenirOrderId && status === "REVERSED") {
+      const updatedOrder = await tx.souvenirOrder.update({ where: { id: payment.souvenirOrderId }, data: { status: "AWAITING_PAYMENT" } });
+      souvenirOrderStatus = updatedOrder.status;
+    }
+
+    return { reference: updatedPayment.reference, status: updatedPayment.status, registrationStatus, souvenirOrderStatus, alreadyProcessed: false };
   });
 };
 

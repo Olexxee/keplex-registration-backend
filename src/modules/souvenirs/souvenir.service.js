@@ -4,6 +4,7 @@ import * as souvenirDb from "./souvenir.db.js";
 import { BadRequestError, ConflictError, NotFoundError } from "../../classes/errorClasses.js";
 import crypto from "node:crypto";
 import { uploadMedia, deleteMedia } from "../../lib/cloudinaryMedia.js";
+import * as paymentService from "../payment/payment.service.js";
 
 const makeSlug = (value) => slugify(value, { lower: true, strict: true, trim: true });
 
@@ -188,6 +189,52 @@ export const createProductMedia = async (productId, data) => {
   return souvenirDb.createProductMedia({ ...data, productId });
 };
 
+export const uploadProductMedia = async (productId, files = []) => {
+  await requireProduct(productId);
+  if (!files.length) throw new BadRequestError("Select at least one package reference image");
+  if (files.length > 10) throw new BadRequestError("A maximum of 10 package images can be uploaded at once");
+  if (files.some((file) => !file.mimetype?.startsWith("image/"))) {
+    throw new BadRequestError("Package reference media must be image files");
+  }
+
+  const uploadedAssets = [];
+  try {
+    for (const file of files) {
+      const uploaded = await uploadMedia({
+        buffer: file.buffer,
+        mimeType: file.mimetype,
+        folder: "keplex/souvenirs/products",
+      });
+      uploadedAssets.push({
+        productId,
+        url: uploaded.url,
+        publicId: uploaded.publicId,
+        altText: file.originalname?.slice(0, 300) ?? null,
+        isPrimary: false,
+        sortOrder: uploadedAssets.length,
+      });
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      const created = [];
+      for (const asset of uploadedAssets) {
+        created.push(await souvenirDb.createProductMedia(asset, tx));
+      }
+      const current = await souvenirDb.findProductById(productId, tx);
+      if (!current.media.some((item) => item.isPrimary) && created.length) {
+        await souvenirDb.clearPrimaryProductMedia(productId, tx);
+        created[0] = await souvenirDb.updateProductMedia(created[0].id, { isPrimary: true }, tx);
+      }
+      return created;
+    });
+  } catch (error) {
+    await Promise.all(uploadedAssets.map((asset) =>
+      deleteMedia({ publicId: asset.publicId, resourceType: asset.resourceType ?? "image" }).catch(() => {})
+    ));
+    throw error;
+  }
+};
+
 export const updateProductMedia = async (mediaId, data) => {
   const existing = await souvenirDb.findProductMediaById(mediaId);
   if (!existing) throw new NotFoundError("Souvenir product image not found");
@@ -272,19 +319,39 @@ export const createGuestSouvenirOrder = async (data) => {
     return souvenirDb.findSouvenirOrderById(created.id, tx);
   });
 
+  let payment = null;
+  let paymentError = null;
+  try {
+    payment = await paymentService.initializeSouvenirPayment({ orderId: order.id, accessToken });
+  } catch {
+    paymentError = "Secure checkout could not be initialized. Keep your private order link and retry payment shortly.";
+  }
+
   return {
+    payment,
+    paymentError,
     order: {
       publicReference: order.publicReference,
       productName: order.productNameSnapshot,
       quantity: order.quantity,
       totalPrice: order.totalPriceSnapshot,
       currency: order.currency,
-      status: order.status,
+      status: payment ? "AWAITING_PAYMENT" : order.status,
       colorSelections: order.colorSelections,
     },
     accessToken,
     accessUrlPath: `/api/souvenirs/orders/access/${accessToken}`,
   };
+};
+
+export const retryGuestSouvenirPayment = async (token) => {
+  const accessTokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const order = await souvenirDb.findOrderByTokenHash(accessTokenHash);
+  if (!order) throw new NotFoundError("Souvenir order not found");
+  if (order.status === "PAID" || order.status === "IN_PRODUCTION" || order.status === "READY" || order.status === "FULFILLED") {
+    throw new ConflictError("This souvenir order has already been paid or is being fulfilled");
+  }
+  return paymentService.initializeSouvenirPayment({ orderId: order.id, accessToken: token });
 };
 
 export const getGuestSouvenirOrder = async (token) => {

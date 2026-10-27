@@ -53,6 +53,10 @@ export const createProductMedia = asyncWrapper(async (req, res) => {
   const data = await souvenirService.createProductMedia(req.validated.params.id, req.validated.body);
   return res.status(201).json({ success: true, data });
 });
+export const uploadProductMedia = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.uploadProductMedia(req.validated.params.id, req.files ?? []);
+  return res.status(201).json({ success: true, data });
+});
 export const updateProductMedia = asyncWrapper(async (req, res) => {
   const data = await souvenirService.updateProductMedia(req.validated.params.mediaId, req.validated.body);
   return res.json({ success: true, data });
@@ -68,6 +72,10 @@ export const createGuestSouvenirOrder = asyncWrapper(async (req, res) => {
   });
 });
 
+export const retryGuestSouvenirPayment = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.retryGuestSouvenirPayment(req.validated.params.token);
+  return res.json({ success: true, data });
+});
 export const getGuestSouvenirOrder = asyncWrapper(async (req, res) => {
   const data = await souvenirService.getGuestSouvenirOrder(req.validated.params.token);
   return res.json({ success: true, data });
