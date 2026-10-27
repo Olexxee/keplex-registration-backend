@@ -50,7 +50,7 @@ const getPaymentStatus = (status) => {
   }
 };
 
-export const initializeSouvenirPayment = async ({ orderId }) => {
+export const initializeSouvenirPayment = async ({ orderId, accessToken }) => {
   const order = await souvenirDb.findSouvenirOrderById(orderId);
   if (!order) throw new NotFoundError("Souvenir order not found");
   if (order.status !== "SUBMITTED" && order.status !== "AWAITING_PAYMENT") throw new BadRequestError("This souvenir order is not awaiting payment");
@@ -65,7 +65,10 @@ export const initializeSouvenirPayment = async ({ orderId }) => {
   try {
     const result = await initializePaystackTransaction({
       email: order.customerEmail, amount: String(amountInMinorUnits), currency: order.currency,
-      reference: payment.reference, callback_url: process.env.PAYSTACK_CALLBACK_URL,
+      reference: payment.reference,
+      callback_url: process.env.FRONTEND_URL && accessToken
+        ? process.env.FRONTEND_URL.replace(/\/+$/, "") + "/souvenirs/orders/access/" + accessToken + "?reference=" + payment.reference
+        : process.env.PAYSTACK_CALLBACK_URL,
       metadata: { paymentId: payment.id, souvenirOrderId: order.id, paymentType: "SOUVENIR_ORDER" },
     });
     await paymentDb.updatePayment(payment.id, { authorizationUrl: result.authorization_url, accessCode: result.access_code });
