@@ -25,6 +25,9 @@ export const updateHero = asyncWrapper(async (req, res) =>
     await service.updateHero(req.validated.params.id, req.validated.body),
   ),
 );
+export const deleteHero = asyncWrapper(async (req, res) =>
+  ok(res, "Homepage slide deleted", await service.deleteHero(req.validated.params.id)),
+);
 export const publishHero = asyncWrapper(async (req, res) =>
   ok(res, "Hero published", await service.publishHero(req.validated.params.id)),
 );
