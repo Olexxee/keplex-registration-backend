@@ -53,6 +53,7 @@ export const findPaymentByReference = (reference, tx = prisma) =>
           trainingProgram: true,
         },
       },
+      souvenirOrder: true,
     },
   });
 
