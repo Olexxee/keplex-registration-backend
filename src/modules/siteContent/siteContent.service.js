@@ -39,6 +39,16 @@ export const updateHero = async (id, data) => {
   }
   return updated;
 };
+export const deleteHero = async (id) => {
+  const existing = await db.findHero(id);
+  if (!existing) throw new NotFoundError("Hero version not found");
+  const deleted = await db.deleteHero(id);
+  if (existing.imagePublicId) {
+    try { await deleteMedia({ publicId: existing.imagePublicId, resourceType: "image" }); }
+    catch (error) { console.error("[site-content] Failed to remove hero image after slide deletion", error); }
+  }
+  return deleted;
+};
 export const publishHero = async (id) => {
   const hero = await db.publishHero(id);
   if (!hero) throw new NotFoundError("Hero version not found");
