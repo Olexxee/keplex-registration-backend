@@ -188,6 +188,46 @@ export const createProductMedia = async (productId, data) => {
   return souvenirDb.createProductMedia({ ...data, productId });
 };
 
+export const uploadProductMedia = async (productId, files = []) => {
+  await requireProduct(productId);
+  if (!files.length) throw new BadRequestError("Select at least one package reference image");
+  if (files.length > 10) throw new BadRequestError("A maximum of 10 package images can be uploaded at once");
+
+  const uploadedAssets = [];
+  try {
+    for (const file of files) {
+      const uploaded = await uploadMedia({
+        buffer: file.buffer,
+        mimeType: file.mimetype,
+        folder: "keplex/souvenirs/products",
+      });
+      uploadedAssets.push({
+        productId,
+        url: uploaded.url,
+        publicId: uploaded.publicId,
+        altText: file.originalname?.slice(0, 300) ?? null,
+        isPrimary: false,
+        sortOrder: uploadedAssets.length,
+      });
+    }
+
+    const created = [];
+    for (const asset of uploadedAssets) {
+      created.push(await souvenirDb.createProductMedia(asset));
+    }
+    if (!(await souvenirDb.findProductById(productId)).media.some((item) => item.isPrimary) && created.length) {
+      await souvenirDb.clearPrimaryProductMedia(productId);
+      created[0] = await souvenirDb.updateProductMedia(created[0].id, { isPrimary: true });
+    }
+    return created;
+  } catch (error) {
+    await Promise.all(uploadedAssets.map((asset) =>
+      deleteMedia({ publicId: asset.publicId, resourceType: "image" }).catch(() => {})
+    ));
+    throw error;
+  }
+};
+
 export const updateProductMedia = async (mediaId, data) => {
   const existing = await souvenirDb.findProductMediaById(mediaId);
   if (!existing) throw new NotFoundError("Souvenir product image not found");
