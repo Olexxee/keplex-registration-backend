@@ -4,6 +4,7 @@ import * as souvenirDb from "./souvenir.db.js";
 import { BadRequestError, ConflictError, NotFoundError } from "../../classes/errorClasses.js";
 import crypto from "node:crypto";
 import { uploadMedia, deleteMedia } from "../../lib/cloudinaryMedia.js";
+import * as paymentService from "../payment/payment.service.js";
 
 const makeSlug = (value) => slugify(value, { lower: true, strict: true, trim: true });
 
@@ -312,7 +313,10 @@ export const createGuestSouvenirOrder = async (data) => {
     return souvenirDb.findSouvenirOrderById(created.id, tx);
   });
 
+  const payment = await paymentService.initializeSouvenirPayment({ orderId: order.id });
+
   return {
+    payment,
     order: {
       publicReference: order.publicReference,
       productName: order.productNameSnapshot,
