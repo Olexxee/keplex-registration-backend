@@ -66,6 +66,7 @@ router.post("/admin/products/:id/price-tiers", ...admin, validateParams(idParams
 router.patch("/admin/price-tiers/:tierId", ...admin, validateParams(tierIdParamsSchema), validateBody(updatePriceTierSchema), controller.updatePriceTier);
 router.patch("/admin/price-tiers/:tierId/status", ...admin, validateParams(tierIdParamsSchema), validateBody(setActiveSchema), controller.setPriceTierActive);
 
+router.post("/admin/products/:id/media/upload", ...admin, validateParams(idParamsSchema), uploadMultipleReferenceMedia, controller.uploadProductMedia);
 router.post("/admin/products/:id/media", ...admin, validateParams(idParamsSchema), validateBody(createProductMediaSchema), controller.createProductMedia);
 router.patch("/admin/media/:mediaId", ...admin, validateParams(mediaIdParamsSchema), validateBody(updateProductMediaSchema), controller.updateProductMedia);
 
