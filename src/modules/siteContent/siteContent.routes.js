@@ -34,6 +34,7 @@ router.get("/resources/:slug", validateParams(slugParamsSchema), controller.getP
 router.get("/admin/hero", ...admin, controller.getAdminHeroes);
 router.post("/admin/hero", ...admin, validateBody(heroSchema), controller.createHero);
 router.patch("/admin/hero/:id", ...admin, validateParams(idParamsSchema), validateBody(heroSchema.partial()), controller.updateHero);
+router.delete("/admin/hero/:id", ...admin, validateParams(idParamsSchema), controller.deleteHero);
 router.post("/admin/hero/:id/publish", ...admin, validateParams(idParamsSchema), controller.publishHero);
 
 // Uploads use dedicated allowlists and size limits; PDFs use an explicit Cloudinary image asset type for PDF delivery.
