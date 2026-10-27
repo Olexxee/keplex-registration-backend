@@ -57,6 +57,9 @@ export const initializeSouvenirPayment = async ({ orderId, accessToken }) => {
   if (order.currency !== "NGN") throw new BadRequestError("Only NGN payments are currently supported");
   const pendingPayment = await paymentDb.findPendingSouvenirPayment(order.id);
   if (pendingPayment?.authorizationUrl) {
+    if (order.status === "SUBMITTED") {
+      await souvenirDb.updateSouvenirOrder(order.id, { status: "AWAITING_PAYMENT" });
+    }
     return {
       paymentId: pendingPayment.id,
       reference: pendingPayment.reference,
