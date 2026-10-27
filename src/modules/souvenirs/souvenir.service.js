@@ -313,7 +313,7 @@ export const createGuestSouvenirOrder = async (data) => {
     return souvenirDb.findSouvenirOrderById(created.id, tx);
   });
 
-  const payment = await paymentService.initializeSouvenirPayment({ orderId: order.id });
+  const payment = await paymentService.initializeSouvenirPayment({ orderId: order.id, accessToken });
 
   return {
     payment,
