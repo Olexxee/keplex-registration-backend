@@ -333,7 +333,7 @@ export const createGuestSouvenirOrder = async (data) => {
       quantity: order.quantity,
       totalPrice: order.totalPriceSnapshot,
       currency: order.currency,
-      status: order.status,
+      status: payment ? "AWAITING_PAYMENT" : order.status,
       colorSelections: order.colorSelections,
     },
     accessToken,
