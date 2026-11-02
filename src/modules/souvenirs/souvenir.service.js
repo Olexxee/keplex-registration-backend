@@ -5,6 +5,7 @@ import { BadRequestError, ConflictError, NotFoundError } from "../../classes/err
 import crypto from "node:crypto";
 import { uploadMedia, deleteMedia } from "../../lib/cloudinaryMedia.js";
 import * as paymentService from "../payment/payment.service.js";
+import { calculateSouvenirPrice } from "./souvenir.pricing.js";
 
 const makeSlug = (value) => slugify(value, { lower: true, strict: true, trim: true });
 
@@ -77,8 +78,8 @@ export const setProductActive = async (id, active) => {
 };
 
 export const validateSelectedColorOptions = async (productId, colorOptionIds, tx) => {
-  if (!Array.isArray(colorOptionIds) || colorOptionIds.length < 1 || colorOptionIds.length > 3) {
-    throw new BadRequestError("Select between one and three colours");
+  if (!Array.isArray(colorOptionIds) || colorOptionIds.length < 1 || colorOptionIds.length > 5) {
+    throw new BadRequestError("Select between one and five colours");
   }
   if (new Set(colorOptionIds).size !== colorOptionIds.length) {
     throw new BadRequestError("Selected colours must be unique");
@@ -139,7 +140,7 @@ const assertNoTierOverlap = (candidate, tiers, excludedId = null) => {
   if (candidate.maxQuantity != null && candidate.maxQuantity < candidate.minQuantity) {
     throw new BadRequestError("Maximum quantity must be greater than or equal to minimum quantity");
   }
-  const conflict = tiers.find((tier) => tier.id !== excludedId && overlaps(candidate, tier));
+  const conflict = tiers.find((tier) => tier.id !== excludedId && tier.active !== false && overlaps(candidate, tier));
   if (conflict) throw new ConflictError(`Quantity range overlaps the existing tier "${conflict.label}"`);
 };
 
@@ -152,7 +153,9 @@ export const createPriceTier = async (productId, data) => {
     label: data.label,
     minQuantity: data.minQuantity,
     maxQuantity: data.maxQuantity ?? null,
-    totalPrice: data.totalPrice,
+    // Keep the legacy column populated while all new pricing uses unitPrice.
+    totalPrice: data.unitPrice,
+    unitPrice: data.unitPrice,
     currency: data.currency ?? "NGN",
     displayOrder: data.displayOrder ?? 0,
     active: true,
@@ -165,7 +168,9 @@ export const updatePriceTier = async (tierId, data) => {
   const candidate = { ...existing, ...data };
   const tiers = await souvenirDb.listPriceTiersForProduct(existing.productId);
   assertNoTierOverlap(candidate, tiers, tierId);
-  return souvenirDb.updatePriceTier(tierId, data);
+  const update = { ...data };
+  if (data.unitPrice !== undefined) update.totalPrice = data.unitPrice;
+  return souvenirDb.updatePriceTier(tierId, update);
 };
 
 export const setPriceTierActive = async (tierId, active) => {
@@ -282,6 +287,7 @@ export const createGuestSouvenirOrder = async (data) => {
     if (!product) throw new NotFoundError("Souvenir package is unavailable");
 
     const tier = product.priceTiers.find((item) =>
+      item.unitPrice != null &&
       data.quantity >= item.minQuantity &&
       (item.maxQuantity == null || data.quantity <= item.maxQuantity)
     );
@@ -293,6 +299,7 @@ export const createGuestSouvenirOrder = async (data) => {
     }
 
     const colorSnapshots = await validateSelectedColorOptions(data.productId, data.colorOptionIds, tx);
+    const { unitPriceSnapshot, totalPriceSnapshot } = calculateSouvenirPrice(tier.unitPrice, data.quantity);
     const created = await souvenirDb.createSouvenirOrder({
       publicReference,
       accessTokenHash,
@@ -304,7 +311,8 @@ export const createGuestSouvenirOrder = async (data) => {
       productNameSnapshot: product.name,
       priceTierLabelSnapshot: tier.label,
       quantity: data.quantity,
-      totalPriceSnapshot: tier.totalPrice,
+      unitPriceSnapshot,
+      totalPriceSnapshot,
       currency: tier.currency,
       bookingTermsSnapshot: product.bookingTerms,
       productionLeadTimeDaysSnapshot: product.productionLeadTimeDays,
@@ -340,6 +348,7 @@ export const createGuestSouvenirOrder = async (data) => {
       publicReference: order.publicReference,
       productName: order.productNameSnapshot,
       quantity: order.quantity,
+      unitPrice: order.unitPriceSnapshot,
       totalPrice: order.totalPriceSnapshot,
       currency: order.currency,
       status: payment ? "AWAITING_PAYMENT" : order.status,
