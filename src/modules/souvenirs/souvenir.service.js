@@ -190,7 +190,11 @@ export const createProductMedia = async (productId, data) => {
 };
 
 export const uploadProductMedia = async (productId, files = []) => {
-  await requireProduct(productId);
+  // Avoid loading the full admin catalogue (media, colour options and price tiers)
+  // for an upload existence check. This keeps the pre-upload DB operation small.
+  await souvenirDb.findProductIdById(productId).then((product) => {
+    if (!product) throw new NotFoundError("Souvenir product not found");
+  });
   if (!files.length) throw new BadRequestError("Select at least one package reference image");
   if (files.length > 10) throw new BadRequestError("A maximum of 10 package images can be uploaded at once");
   if (files.some((file) => !file.mimetype?.startsWith("image/"))) {
@@ -209,6 +213,7 @@ export const uploadProductMedia = async (productId, files = []) => {
         productId,
         url: uploaded.url,
         publicId: uploaded.publicId,
+        resourceType: uploaded.resourceType ?? "image",
         altText: file.originalname?.slice(0, 300) ?? null,
         isPrimary: false,
         sortOrder: uploadedAssets.length,
@@ -220,8 +225,8 @@ export const uploadProductMedia = async (productId, files = []) => {
       for (const asset of uploadedAssets) {
         created.push(await souvenirDb.createProductMedia(asset, tx));
       }
-      const current = await souvenirDb.findProductById(productId, tx);
-      if (!current.media.some((item) => item.isPrimary) && created.length) {
+      const currentPrimary = await souvenirDb.findPrimaryProductMedia(productId, tx);
+      if (!currentPrimary && created.length) {
         await souvenirDb.clearPrimaryProductMedia(productId, tx);
         created[0] = await souvenirDb.updateProductMedia(created[0].id, { isPrimary: true }, tx);
       }
