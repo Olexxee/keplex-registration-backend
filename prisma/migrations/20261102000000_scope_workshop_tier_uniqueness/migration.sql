@@ -3,6 +3,7 @@ ALTER TABLE "SouvenirProduct" ADD COLUMN IF NOT EXISTS "archivedAt" TIMESTAMP(3)
 
 -- Workshop participant counts are scoped to an offering.
 -- Remove the legacy global uniqueness constraint if an earlier db push created it.
+ALTER TABLE "WorkshopParticipantTier" DROP CONSTRAINT IF EXISTS "WorkshopParticipantTier_participantCount_key";
 DROP INDEX IF EXISTS "WorkshopParticipantTier_participantCount_key";
 
 -- Keep participant counts unique only within the same workshop offering.
