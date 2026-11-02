@@ -1,4 +1,29 @@
 import slugify from "slugify";
+const SOUVENIR_COLOR_PALETTE = new Map([
+  ["Black", "#000000"],
+  ["White", "#FFFFFF"],
+  ["Charcoal", "#36454F"],
+  ["Grey", "#808080"],
+  ["Navy", "#17324D"],
+  ["Blue", "#1565C0"],
+  ["Sky Blue", "#4FC3F7"],
+  ["Teal", "#2A7F7F"],
+  ["Emerald", "#008F6B"],
+  ["Green", "#2E7D32"],
+  ["Lime", "#A4C639"],
+  ["Yellow", "#FDD835"],
+  ["Gold", "#D4A85A"],
+  ["Orange", "#F57C00"],
+  ["Red", "#E53935"],
+  ["Maroon", "#800000"],
+  ["Wine", "#722F37"],
+  ["Pink", "#F4A6C1"],
+  ["Magenta", "#C2185B"],
+  ["Purple", "#6A1B9A"],
+  ["Brown", "#795548"],
+]);
+
+
 import { prisma } from "../../config/prisma.js";
 import * as souvenirDb from "./souvenir.db.js";
 import { BadRequestError, ConflictError, NotFoundError } from "../../classes/errorClasses.js";
@@ -77,22 +102,30 @@ export const setProductActive = async (id, active) => {
   return souvenirDb.updateProduct(id, { active });
 };
 
-export const validateSelectedColorOptions = async (productId, colorOptionIds, tx) => {
-  if (!Array.isArray(colorOptionIds) || colorOptionIds.length < 1 || colorOptionIds.length > 5) {
+export const validateSelectedColors = (colorSelections) => {
+  if (!Array.isArray(colorSelections) || colorSelections.length < 1 || colorSelections.length > 5) {
     throw new BadRequestError("Select between one and five colours");
   }
-  if (new Set(colorOptionIds).size !== colorOptionIds.length) {
+
+  const normalized = colorSelections.map((selection) => {
+    const name = String(selection?.name ?? "").trim();
+    const colorHex = String(selection?.colorHex ?? "").toUpperCase();
+    const allowedHex = SOUVENIR_COLOR_PALETTE.get(name);
+    if (!allowedHex || allowedHex !== colorHex) {
+      throw new BadRequestError("Choose colours from the available customer palette");
+    }
+    return {
+      colorOptionId: null,
+      nameSnapshot: name,
+      colorHexSnapshot: colorHex,
+      swatchImageUrlSnapshot: null,
+    };
+  });
+
+  if (new Set(normalized.map((color) => color.name.toLowerCase())).size !== normalized.length) {
     throw new BadRequestError("Selected colours must be unique");
   }
-  const colors = await souvenirDb.findActiveColorOptionsByIds(productId, colorOptionIds, tx);
-  if (colors.length !== colorOptionIds.length) {
-    throw new BadRequestError("Every selected colour must be active and belong to the selected souvenir");
-  }
-  return colors.map((color) => ({
-    colorOptionId: color.id,
-    nameSnapshot: color.name,
-    colorHexSnapshot: color.colorHex,
-  }));
+  return normalized;
 };
 
 export const createColorOption = async (productId, data) => {
@@ -290,7 +323,7 @@ export const createGuestSouvenirOrder = async (data) => {
       throw new BadRequestError("Only NGN souvenir orders are currently supported");
     }
 
-    const colorSnapshots = await validateSelectedColorOptions(data.productId, data.colorOptionIds, tx);
+    const colorSnapshots = validateSelectedColors(data.colorSelections);
     let pricing;
     try {
       pricing = calculateSouvenirPrice(tier.unitPrice, data.quantity);
@@ -318,15 +351,7 @@ export const createGuestSouvenirOrder = async (data) => {
       status: "SUBMITTED",
     }, tx);
 
-    await souvenirDb.createSouvenirOrderColors(created.id, colorSnapshots.map((color) => {
-      const source = product.colorOptions.find((option) => option.id === color.colorOptionId);
-      return {
-        colorOptionId: color.colorOptionId,
-        nameSnapshot: color.nameSnapshot,
-        colorHexSnapshot: color.colorHexSnapshot,
-        swatchImageUrlSnapshot: source?.swatchImageUrl ?? null,
-      };
-    }), tx);
+    await souvenirDb.createSouvenirOrderColors(created.id, colorSnapshots, tx);
 
     return souvenirDb.findSouvenirOrderById(created.id, tx);
   });
