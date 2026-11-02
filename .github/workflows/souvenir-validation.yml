@@ -2,12 +2,13 @@ name: Souvenir backend validation
 
 on:
   push:
-    branches: [fix/render-souvenir-media-upload]
+    branches: [fix/render-souvenir-media-upload, feat/souvenir-pricing-payment-media]
   pull_request:
     branches: [main]
     paths:
       - "prisma/**"
       - "src/modules/souvenirs/**"
+      - "src/modules/workshops/**"
       - "src/middlewares/uploadMiddleware.js"
       - "package.json"
       - "package-lock.json"
