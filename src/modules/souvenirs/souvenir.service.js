@@ -167,7 +167,7 @@ export const updatePriceTier = async (tierId, data) => {
   if (!existing) throw new NotFoundError("Souvenir price tier not found");
   const candidate = { ...existing, ...data };
   const tiers = await souvenirDb.listPriceTiersForProduct(existing.productId);
-  assertNoTierOverlap(candidate, tiers, tierId);
+  if (existing.active) assertNoTierOverlap(candidate, tiers, tierId);
   const update = { ...data };
   if (data.unitPrice !== undefined) update.totalPrice = data.unitPrice;
   return souvenirDb.updatePriceTier(tierId, update);
@@ -177,6 +177,7 @@ export const setPriceTierActive = async (tierId, active) => {
   const existing = await souvenirDb.findPriceTierById(tierId);
   if (!existing) throw new NotFoundError("Souvenir price tier not found");
   if (active) {
+    if (existing.unitPrice == null) throw new ConflictError("Set a per-piece rate before activating this price tier");
     const tiers = await souvenirDb.listPriceTiersForProduct(existing.productId);
     assertNoTierOverlap(existing, tiers, tierId);
   }
@@ -299,7 +300,13 @@ export const createGuestSouvenirOrder = async (data) => {
     }
 
     const colorSnapshots = await validateSelectedColorOptions(data.productId, data.colorOptionIds, tx);
-    const { unitPriceSnapshot, totalPriceSnapshot } = calculateSouvenirPrice(tier.unitPrice, data.quantity);
+    let pricing;
+    try {
+      pricing = calculateSouvenirPrice(tier.unitPrice, data.quantity);
+    } catch (error) {
+      throw new BadRequestError(error.message);
+    }
+    const { unitPriceSnapshot, totalPriceSnapshot } = pricing;
     const created = await souvenirDb.createSouvenirOrder({
       publicReference,
       accessTokenHash,
@@ -378,6 +385,7 @@ export const getGuestSouvenirOrder = async (token) => {
     customerName: order.customerName,
     productName: order.productNameSnapshot,
     quantity: order.quantity,
+    unitPrice: order.unitPriceSnapshot,
     totalPrice: order.totalPriceSnapshot,
     currency: order.currency,
     status: order.status,
