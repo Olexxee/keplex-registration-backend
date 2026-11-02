@@ -2,7 +2,7 @@ const MAX_TOTAL_MINOR = 999_999_999_999n;
 
 const toMinorUnits = (value) => {
   const normalized = String(value).trim();
-  const match = normalized.match(/^(\\d+)(?:\\.(\\d{1,2}))?$/);
+  const match = normalized.match(/^(\d+)(?:\.(\d{1,2}))?$/);
   if (!match) throw new TypeError("Unit price must be a valid amount with at most two decimal places");
   return BigInt(match[1]) * 100n + BigInt((match[2] ?? "").padEnd(2, "0"));
 };
