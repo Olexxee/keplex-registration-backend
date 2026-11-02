@@ -58,6 +58,9 @@ router.get("/admin/products", ...admin, controller.getAdminProducts);
 router.post("/admin/products", ...admin, validateBody(createProductSchema), controller.createProduct);
 router.patch("/admin/products/:id", ...admin, validateParams(idParamsSchema), validateBody(updateProductSchema), controller.updateProduct);
 router.patch("/admin/products/:id/status", ...admin, validateParams(idParamsSchema), validateBody(setActiveSchema), controller.setProductActive);
+router.post("/admin/products/:id/archive", ...admin, validateParams(idParamsSchema), controller.archiveProduct);
+router.post("/admin/products/:id/restore", ...admin, validateParams(idParamsSchema), controller.restoreProduct);
+router.delete("/admin/products/:id", ...admin, validateParams(idParamsSchema), controller.deleteProduct);
 
 router.post("/admin/products/:id/colors", ...admin, validateParams(idParamsSchema), validateBody(createColorOptionSchema), controller.createColorOption);
 router.patch("/admin/colors/:colorId", ...admin, validateParams(colorIdParamsSchema), validateBody(updateColorOptionSchema), controller.updateColorOption);
@@ -70,6 +73,7 @@ router.patch("/admin/price-tiers/:tierId/status", ...admin, validateParams(tierI
 router.post("/admin/products/:id/media/upload", ...admin, validateParams(idParamsSchema), uploadMultipleReferenceMedia, controller.uploadProductMedia);
 router.post("/admin/products/:id/media", ...admin, validateParams(idParamsSchema), validateBody(createProductMediaSchema), controller.createProductMedia);
 router.patch("/admin/media/:mediaId", ...admin, validateParams(mediaIdParamsSchema), validateBody(updateProductMediaSchema), controller.updateProductMedia);
+router.delete("/admin/media/:mediaId", ...admin, validateParams(mediaIdParamsSchema), controller.deleteProductMedia);
 
 // Public catalogue. Dynamic slug route stays last to avoid catching static paths.
 router.get("/", controller.getPublicProducts);
