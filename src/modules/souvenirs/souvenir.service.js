@@ -223,7 +223,8 @@ export const uploadProductMedia = async (productId, files = []) => {
     return await prisma.$transaction(async (tx) => {
       const created = [];
       for (const asset of uploadedAssets) {
-        created.push(await souvenirDb.createProductMedia(asset, tx));
+        const { resourceType: _resourceType, ...mediaData } = asset;
+        created.push(await souvenirDb.createProductMedia(mediaData, tx));
       }
       const currentPrimary = await souvenirDb.findPrimaryProductMedia(productId, tx);
       if (!currentPrimary && created.length) {
