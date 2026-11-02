@@ -73,7 +73,7 @@ export const clearPrimaryProductMedia = (productId, tx = prisma) => tx.souvenirP
   where: { productId, isPrimary: true }, data: { isPrimary: false },
 });
 export const getActivePriceTierCount = (productId, tx = prisma) => tx.souvenirPriceTier.count({
-  where: { productId, active: true },
+  where: { productId, active: true, unitPrice: { not: null } },
 });
 
 export const findActiveColorOptionsByIds = (productId, ids, tx = prisma) =>
@@ -103,7 +103,7 @@ export const findActiveProductForOrder = (id, tx = prisma) =>
     where: { id, active: true },
     include: {
       colorOptions: { where: { active: true } },
-      priceTiers: { where: { active: true } },
+      priceTiers: { where: { active: true, unitPrice: { not: null } } },
     },
   });
 
