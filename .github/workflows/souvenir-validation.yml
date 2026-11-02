@@ -1,0 +1,36 @@
+name: Souvenir backend validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "prisma/**"
+      - "src/modules/souvenirs/**"
+      - "src/middlewares/uploadMiddleware.js"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/souvenir-validation.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/kpx_test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Run souvenir pricing tests
+        run: npm test
