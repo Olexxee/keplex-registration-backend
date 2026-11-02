@@ -1,4 +1,12 @@
 import slugify from "slugify";
+import { prisma } from "../../config/prisma.js";
+import * as souvenirDb from "./souvenir.db.js";
+import { BadRequestError, ConflictError, NotFoundError } from "../../classes/errorClasses.js";
+import crypto from "node:crypto";
+import { uploadMedia, deleteMedia } from "../../lib/cloudinaryMedia.js";
+import * as paymentService from "../payment/payment.service.js";
+import { calculateSouvenirPrice, findMatchingPriceTier, quantityRangesOverlap } from "./souvenir.pricing.js";
+
 const SOUVENIR_COLOR_PALETTE = new Map([
   ["Black", "#000000"],
   ["White", "#FFFFFF"],
@@ -22,15 +30,6 @@ const SOUVENIR_COLOR_PALETTE = new Map([
   ["Purple", "#6A1B9A"],
   ["Brown", "#795548"],
 ]);
-
-
-import { prisma } from "../../config/prisma.js";
-import * as souvenirDb from "./souvenir.db.js";
-import { BadRequestError, ConflictError, NotFoundError } from "../../classes/errorClasses.js";
-import crypto from "node:crypto";
-import { uploadMedia, deleteMedia } from "../../lib/cloudinaryMedia.js";
-import * as paymentService from "../payment/payment.service.js";
-import { calculateSouvenirPrice, findMatchingPriceTier, quantityRangesOverlap } from "./souvenir.pricing.js";
 
 const makeSlug = (value) => slugify(value, { lower: true, strict: true, trim: true });
 
