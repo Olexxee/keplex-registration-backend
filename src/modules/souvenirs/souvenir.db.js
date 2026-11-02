@@ -35,6 +35,15 @@ export const listAdminProducts = (tx = prisma) => tx.souvenirProduct.findMany({
 export const findProductById = (id, tx = prisma) => tx.souvenirProduct.findUnique({
   where: { id }, include: adminInclude,
 });
+export const findProductIdById = (id, tx = prisma) => tx.souvenirProduct.findUnique({
+  where: { id },
+  select: { id: true },
+});
+export const findPrimaryProductMedia = (productId, tx = prisma) => tx.souvenirProductMedia.findFirst({
+  where: { productId, isPrimary: true },
+  select: { id: true },
+});
+
 export const findProductBySlug = (slug, tx = prisma) => tx.souvenirProduct.findUnique({
   where: { slug }, select: { id: true, slug: true },
 });
