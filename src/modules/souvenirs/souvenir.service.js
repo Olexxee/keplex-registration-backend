@@ -5,7 +5,7 @@ import { BadRequestError, ConflictError, NotFoundError } from "../../classes/err
 import crypto from "node:crypto";
 import { uploadMedia, deleteMedia } from "../../lib/cloudinaryMedia.js";
 import * as paymentService from "../payment/payment.service.js";
-import { calculateSouvenirPrice, findMatchingPriceTier } from "./souvenir.pricing.js";
+import { calculateSouvenirPrice, findMatchingPriceTier, quantityRangesOverlap } from "./souvenir.pricing.js";
 
 const makeSlug = (value) => slugify(value, { lower: true, strict: true, trim: true });
 
@@ -130,17 +130,12 @@ export const setColorOptionActive = async (colorId, active) => {
   return souvenirDb.updateColorOption(colorId, { active });
 };
 
-const overlaps = (a, b) => {
-  const aMax = a.maxQuantity ?? Number.POSITIVE_INFINITY;
-  const bMax = b.maxQuantity ?? Number.POSITIVE_INFINITY;
-  return a.minQuantity <= bMax && b.minQuantity <= aMax;
-};
 
 const assertNoTierOverlap = (candidate, tiers, excludedId = null) => {
   if (candidate.maxQuantity != null && candidate.maxQuantity < candidate.minQuantity) {
     throw new BadRequestError("Maximum quantity must be greater than or equal to minimum quantity");
   }
-  const conflict = tiers.find((tier) => tier.id !== excludedId && tier.active !== false && overlaps(candidate, tier));
+  const conflict = tiers.find((tier) => tier.id !== excludedId && tier.active !== false && quantityRangesOverlap(candidate, tier));
   if (conflict) throw new ConflictError(`Quantity range overlaps the existing tier "${conflict.label}"`);
 };
 
