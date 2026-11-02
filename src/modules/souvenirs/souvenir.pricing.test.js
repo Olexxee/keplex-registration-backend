@@ -36,7 +36,8 @@ test("matches inclusive quantity boundaries and open-ended tiers", () => {
   assert.equal(findMatchingPriceTier(tiers, 99), tiers[1]);
   assert.equal(findMatchingPriceTier(tiers, 100), tiers[2]);
   assert.equal(findMatchingPriceTier(tiers, 100000), tiers[2]);
-  assert.equal(findMatchingPriceTier(tiers, 100001), undefined);
+  assert.equal(findMatchingPriceTier(tiers, 100001), tiers[2]);
+  assert.equal(findMatchingPriceTier(tiers.slice(0, 2), 100), undefined);
 });
 
 test("does not match unpriced legacy tiers and detects inclusive overlaps", () => {
