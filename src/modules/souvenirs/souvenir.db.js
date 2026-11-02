@@ -3,7 +3,7 @@ import { prisma } from "../../config/prisma.js";
 const publicInclude = {
   media: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }] },
   colorOptions: {
-    where: { active: true },
+    where: { active: true, archivedAt: null },
     orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
     select: { id: true, name: true, colorHex: true, swatchImageUrl: true, displayOrder: true },
   },
@@ -25,7 +25,7 @@ export const listPublicProducts = (tx = prisma) => tx.souvenirProduct.findMany({
   include: publicInclude,
 });
 export const findPublicProductBySlug = (slug, tx = prisma) => tx.souvenirProduct.findFirst({
-  where: { slug, active: true },
+  where: { slug, active: true, archivedAt: null },
   include: publicInclude,
 });
 export const listAdminProducts = (tx = prisma) => tx.souvenirProduct.findMany({
@@ -53,6 +53,8 @@ export const createProduct = (data, tx = prisma) => tx.souvenirProduct.create({
 export const updateProduct = (id, data, tx = prisma) => tx.souvenirProduct.update({
   where: { id }, data, include: adminInclude,
 });
+export const countOrdersForProduct = (productId, tx = prisma) => tx.souvenirOrder.count({ where: { productId } });
+export const deleteProduct = (id, tx = prisma) => tx.souvenirProduct.delete({ where: { id } });
 export const createColorOption = (data, tx = prisma) => tx.souvenirColorOption.create({ data });
 export const findColorOptionById = (id, tx = prisma) => tx.souvenirColorOption.findUnique({
   where: { id }, include: { product: true },
@@ -68,6 +70,11 @@ export const listPriceTiersForProduct = (productId, tx = prisma) => tx.souvenirP
 export const updatePriceTier = (id, data, tx = prisma) => tx.souvenirPriceTier.update({ where: { id }, data });
 export const createProductMedia = (data, tx = prisma) => tx.souvenirProductMedia.create({ data });
 export const findProductMediaById = (id, tx = prisma) => tx.souvenirProductMedia.findUnique({ where: { id } });
+export const findNextProductMedia = (productId, excludedId, tx = prisma) => tx.souvenirProductMedia.findFirst({
+  where: { productId, id: { not: excludedId } },
+  orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+});
+export const deleteProductMedia = (id, tx = prisma) => tx.souvenirProductMedia.delete({ where: { id } });
 export const updateProductMedia = (id, data, tx = prisma) => tx.souvenirProductMedia.update({ where: { id }, data });
 export const clearPrimaryProductMedia = (productId, tx = prisma) => tx.souvenirProductMedia.updateMany({
   where: { productId, isPrimary: true }, data: { isPrimary: false },

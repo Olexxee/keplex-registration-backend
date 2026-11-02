@@ -73,11 +73,24 @@ export const updateProduct = async (id, data) => {
 };
 
 export const setProductActive = async (id, active) => {
-  await requireProduct(id);
+  const product = await requireProduct(id);
+  if (active && product.archivedAt) {
+    throw new ConflictError("Restore this archived package before publishing it");
+  }
   if (active && (await souvenirDb.getActivePriceTierCount(id)) === 0) {
     throw new ConflictError("Add at least one active price tier before publishing this souvenir");
   }
   return souvenirDb.updateProduct(id, { active });
+};
+
+export const archiveProduct = async (id) => {
+  await requireProduct(id);
+  return souvenirDb.updateProduct(id, { active: false, archivedAt: new Date() });
+};
+
+export const restoreProduct = async (id) => {
+  await requireProduct(id);
+  return souvenirDb.updateProduct(id, { active: false, archivedAt: null });
 };
 
 
@@ -239,6 +252,56 @@ export const updateProductMedia = async (mediaId, data) => {
     });
   }
   return souvenirDb.updateProductMedia(mediaId, data);
+};
+
+export const deleteProductMedia = async (mediaId) => {
+  const existing = await souvenirDb.findProductMediaById(mediaId);
+  if (!existing) throw new NotFoundError("Souvenir product image not found");
+
+  const result = await deleteMedia({ publicId: existing.publicId, resourceType: "image" });
+  if (result?.result && !["ok", "not found"].includes(result.result)) {
+    throw new ConflictError("The image could not be removed from media storage. The catalogue record was kept.");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    await souvenirDb.deleteProductMedia(mediaId, tx);
+    let promotedMediaId = null;
+    if (existing.isPrimary) {
+      const next = await souvenirDb.findNextProductMedia(existing.productId, mediaId, tx);
+      if (next) {
+        await souvenirDb.clearPrimaryProductMedia(existing.productId, tx);
+        await souvenirDb.updateProductMedia(next.id, { isPrimary: true }, tx);
+        promotedMediaId = next.id;
+      }
+    }
+    return { id: mediaId, deleted: true, promotedMediaId };
+  });
+};
+
+export const deleteProduct = async (productId) => {
+  const product = await requireProduct(productId);
+  if (!product.archivedAt || product.active) {
+    throw new ConflictError("Archive this package before permanently deleting it");
+  }
+
+  const orderCount = await souvenirDb.countOrdersForProduct(productId);
+  if (orderCount > 0) {
+    throw new ConflictError("This package has order history and cannot be permanently deleted. It will remain archived.");
+  }
+
+  const assets = [
+    ...(product.media ?? []).map((media) => media.publicId),
+    ...(product.colorOptions ?? []).map((color) => color.swatchPublicId).filter(Boolean),
+  ];
+  for (const publicId of [...new Set(assets)]) {
+    const result = await deleteMedia({ publicId, resourceType: "image" });
+    if (result?.result && !["ok", "not found"].includes(result.result)) {
+      throw new ConflictError("A package image could not be removed from media storage. The package was not deleted.");
+    }
+  }
+
+  await souvenirDb.deleteProduct(productId);
+  return { id: productId, deleted: true };
 };
 
 

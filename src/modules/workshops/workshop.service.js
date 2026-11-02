@@ -77,7 +77,7 @@ export const createParticipantTier = async (offeringId, data) => {
   try {
     return await workshopDb.createParticipantTier(offeringId, data);
   } catch (error) {
-    if (error?.code === "P2002") throw new ConflictError("A price tier already exists for this participant count");
+    if (error?.code === "P2002") throw new ConflictError("A price tier already exists for this participant count in this offering");
     throw error;
   }
 };
@@ -88,7 +88,7 @@ export const updateParticipantTier = async (tierId, data) => {
   try {
     return await workshopDb.updateParticipantTier(tierId, data);
   } catch (error) {
-    if (error?.code === "P2002") throw new ConflictError("A price tier already exists for this participant count");
+    if (error?.code === "P2002") throw new ConflictError("A price tier already exists for this participant count in this offering");
     throw error;
   }
 };

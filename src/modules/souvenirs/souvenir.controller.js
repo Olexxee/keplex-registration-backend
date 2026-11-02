@@ -25,6 +25,18 @@ export const setProductActive = asyncWrapper(async (req, res) => {
   const data = await souvenirService.setProductActive(req.validated.params.id, req.validated.body.active);
   return res.json({ success: true, data });
 });
+export const archiveProduct = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.archiveProduct(req.validated.params.id);
+  return res.json({ success: true, message: "Souvenir package archived", data });
+});
+export const restoreProduct = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.restoreProduct(req.validated.params.id);
+  return res.json({ success: true, message: "Souvenir package restored as a draft", data });
+});
+export const deleteProduct = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.deleteProduct(req.validated.params.id);
+  return res.json({ success: true, message: "Souvenir package permanently deleted", data });
+});
 export const createColorOption = asyncWrapper(async (req, res) => {
   const data = await souvenirService.createColorOption(req.validated.params.id, req.validated.body);
   return res.status(201).json({ success: true, data });
@@ -60,6 +72,10 @@ export const uploadProductMedia = asyncWrapper(async (req, res) => {
 export const updateProductMedia = asyncWrapper(async (req, res) => {
   const data = await souvenirService.updateProductMedia(req.validated.params.mediaId, req.validated.body);
   return res.json({ success: true, data });
+});
+export const deleteProductMedia = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.deleteProductMedia(req.validated.params.mediaId);
+  return res.json({ success: true, message: "Souvenir image deleted", data });
 });
 
 
