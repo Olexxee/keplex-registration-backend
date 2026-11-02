@@ -5,7 +5,7 @@ import { BadRequestError, ConflictError, NotFoundError } from "../../classes/err
 import crypto from "node:crypto";
 import { uploadMedia, deleteMedia } from "../../lib/cloudinaryMedia.js";
 import * as paymentService from "../payment/payment.service.js";
-import { calculateSouvenirPrice } from "./souvenir.pricing.js";
+import { calculateSouvenirPrice, findMatchingPriceTier } from "./souvenir.pricing.js";
 
 const makeSlug = (value) => slugify(value, { lower: true, strict: true, trim: true });
 
@@ -287,11 +287,7 @@ export const createGuestSouvenirOrder = async (data) => {
     const product = await souvenirDb.findActiveProductForOrder(data.productId, tx);
     if (!product) throw new NotFoundError("Souvenir package is unavailable");
 
-    const tier = product.priceTiers.find((item) =>
-      item.unitPrice != null &&
-      data.quantity >= item.minQuantity &&
-      (item.maxQuantity == null || data.quantity <= item.maxQuantity)
-    );
+    const tier = findMatchingPriceTier(product.priceTiers, data.quantity);
     if (!tier) {
       throw new BadRequestError("The selected quantity does not match an available price package");
     }
