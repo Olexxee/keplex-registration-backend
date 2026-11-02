@@ -1019,3 +1019,9 @@ Public content endpoints are mounted under `/api/site-content`:
 All routes under `/admin` require the existing admin access token and the `ADMIN` or `SUPER_ADMIN` role. Upload endpoints are `POST /admin/uploads/hero-image`, `POST /admin/uploads/gallery-image`, and `POST /admin/uploads/resource-pdf`; each accepts multipart field `file`. Images are limited to 15 MB and PDFs to 50 MB. PDF uploads use Cloudinary's `image` resource type for browser reading and are checked for a PDF signature. Cloudinary may block PDF delivery by default on Free environments; enable PDF delivery in the product environment's Security settings before publishing manuals.
 
 Create hero drafts and publish them explicitly. Publishing archives the previous live version, so drafting or editing a draft does not change the public homepage. Gallery images and resources also remain private to the admin API until published. Resource PDFs are served from Cloudinary; the public site provides an online reader and a direct download link.
+
+## Souvenir pricing and upload reliability
+
+Souvenir quantity tiers now define a **per-piece unit price**. The backend calculates `quantity × unitPrice` in integer minor units, stores the unit-rate and total-price snapshots, and Paystack charges only the persisted order total. Admins must configure and activate unit rates for legacy tiers after the migration; old fixed-tier totals are deliberately not guessed or converted.
+
+See [the souvenir pricing and upload rollout guide](docs/souvenir-pricing-and-upload-rollout.md) for the migration procedure, colour-selection rules, tests, and the limits of the Render upload mitigation. Run `npm test` to execute the souvenir pricing unit tests.
