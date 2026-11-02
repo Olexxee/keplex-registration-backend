@@ -43,8 +43,13 @@ const referenceUpload = multer({
   storage,
   fileFilter,
   limits: {
+    // Admin and customer uploads share the bounded in-memory upload policy.
+    // 10 files × 10 MB prevents a single multipart request from consuming
+    // hundreds of megabytes of Render instance memory.
     fileSize: 10 * 1024 * 1024,
     files: 10,
+    fields: 20,
+    parts: 30,
   },
 });
 

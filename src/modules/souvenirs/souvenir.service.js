@@ -5,6 +5,7 @@ import { BadRequestError, ConflictError, NotFoundError } from "../../classes/err
 import crypto from "node:crypto";
 import { uploadMedia, deleteMedia } from "../../lib/cloudinaryMedia.js";
 import * as paymentService from "../payment/payment.service.js";
+import { calculateSouvenirPrice, findMatchingPriceTier, quantityRangesOverlap } from "./souvenir.pricing.js";
 
 const makeSlug = (value) => slugify(value, { lower: true, strict: true, trim: true });
 
@@ -77,8 +78,8 @@ export const setProductActive = async (id, active) => {
 };
 
 export const validateSelectedColorOptions = async (productId, colorOptionIds, tx) => {
-  if (!Array.isArray(colorOptionIds) || colorOptionIds.length < 1 || colorOptionIds.length > 3) {
-    throw new BadRequestError("Select between one and three colours");
+  if (!Array.isArray(colorOptionIds) || colorOptionIds.length < 1 || colorOptionIds.length > 5) {
+    throw new BadRequestError("Select between one and five colours");
   }
   if (new Set(colorOptionIds).size !== colorOptionIds.length) {
     throw new BadRequestError("Selected colours must be unique");
@@ -129,17 +130,12 @@ export const setColorOptionActive = async (colorId, active) => {
   return souvenirDb.updateColorOption(colorId, { active });
 };
 
-const overlaps = (a, b) => {
-  const aMax = a.maxQuantity ?? Number.POSITIVE_INFINITY;
-  const bMax = b.maxQuantity ?? Number.POSITIVE_INFINITY;
-  return a.minQuantity <= bMax && b.minQuantity <= aMax;
-};
 
 const assertNoTierOverlap = (candidate, tiers, excludedId = null) => {
   if (candidate.maxQuantity != null && candidate.maxQuantity < candidate.minQuantity) {
     throw new BadRequestError("Maximum quantity must be greater than or equal to minimum quantity");
   }
-  const conflict = tiers.find((tier) => tier.id !== excludedId && overlaps(candidate, tier));
+  const conflict = tiers.find((tier) => tier.id !== excludedId && tier.active !== false && quantityRangesOverlap(candidate, tier));
   if (conflict) throw new ConflictError(`Quantity range overlaps the existing tier "${conflict.label}"`);
 };
 
@@ -152,7 +148,9 @@ export const createPriceTier = async (productId, data) => {
     label: data.label,
     minQuantity: data.minQuantity,
     maxQuantity: data.maxQuantity ?? null,
-    totalPrice: data.totalPrice,
+    // Keep the legacy column populated while all new pricing uses unitPrice.
+    totalPrice: data.unitPrice,
+    unitPrice: data.unitPrice,
     currency: data.currency ?? "NGN",
     displayOrder: data.displayOrder ?? 0,
     active: true,
@@ -164,14 +162,17 @@ export const updatePriceTier = async (tierId, data) => {
   if (!existing) throw new NotFoundError("Souvenir price tier not found");
   const candidate = { ...existing, ...data };
   const tiers = await souvenirDb.listPriceTiersForProduct(existing.productId);
-  assertNoTierOverlap(candidate, tiers, tierId);
-  return souvenirDb.updatePriceTier(tierId, data);
+  if (existing.active) assertNoTierOverlap(candidate, tiers, tierId);
+  const update = { ...data };
+  if (data.unitPrice !== undefined) update.totalPrice = data.unitPrice;
+  return souvenirDb.updatePriceTier(tierId, update);
 };
 
 export const setPriceTierActive = async (tierId, active) => {
   const existing = await souvenirDb.findPriceTierById(tierId);
   if (!existing) throw new NotFoundError("Souvenir price tier not found");
   if (active) {
+    if (existing.unitPrice == null) throw new ConflictError("Set a per-piece rate before activating this price tier");
     const tiers = await souvenirDb.listPriceTiersForProduct(existing.productId);
     assertNoTierOverlap(existing, tiers, tierId);
   }
@@ -190,7 +191,11 @@ export const createProductMedia = async (productId, data) => {
 };
 
 export const uploadProductMedia = async (productId, files = []) => {
-  await requireProduct(productId);
+  // Avoid loading the full admin catalogue (media, colour options and price tiers)
+  // for an upload existence check. This keeps the pre-upload DB operation small.
+  await souvenirDb.findProductIdById(productId).then((product) => {
+    if (!product) throw new NotFoundError("Souvenir product not found");
+  });
   if (!files.length) throw new BadRequestError("Select at least one package reference image");
   if (files.length > 10) throw new BadRequestError("A maximum of 10 package images can be uploaded at once");
   if (files.some((file) => !file.mimetype?.startsWith("image/"))) {
@@ -209,6 +214,7 @@ export const uploadProductMedia = async (productId, files = []) => {
         productId,
         url: uploaded.url,
         publicId: uploaded.publicId,
+        resourceType: uploaded.resourceType ?? "image",
         altText: file.originalname?.slice(0, 300) ?? null,
         isPrimary: false,
         sortOrder: uploadedAssets.length,
@@ -218,10 +224,11 @@ export const uploadProductMedia = async (productId, files = []) => {
     return await prisma.$transaction(async (tx) => {
       const created = [];
       for (const asset of uploadedAssets) {
-        created.push(await souvenirDb.createProductMedia(asset, tx));
+        const { resourceType: _resourceType, ...mediaData } = asset;
+        created.push(await souvenirDb.createProductMedia(mediaData, tx));
       }
-      const current = await souvenirDb.findProductById(productId, tx);
-      if (!current.media.some((item) => item.isPrimary) && created.length) {
+      const currentPrimary = await souvenirDb.findPrimaryProductMedia(productId, tx);
+      if (!currentPrimary && created.length) {
         await souvenirDb.clearPrimaryProductMedia(productId, tx);
         created[0] = await souvenirDb.updateProductMedia(created[0].id, { isPrimary: true }, tx);
       }
@@ -275,10 +282,7 @@ export const createGuestSouvenirOrder = async (data) => {
     const product = await souvenirDb.findActiveProductForOrder(data.productId, tx);
     if (!product) throw new NotFoundError("Souvenir package is unavailable");
 
-    const tier = product.priceTiers.find((item) =>
-      data.quantity >= item.minQuantity &&
-      (item.maxQuantity == null || data.quantity <= item.maxQuantity)
-    );
+    const tier = findMatchingPriceTier(product.priceTiers, data.quantity);
     if (!tier) {
       throw new BadRequestError("The selected quantity does not match an available price package");
     }
@@ -287,6 +291,13 @@ export const createGuestSouvenirOrder = async (data) => {
     }
 
     const colorSnapshots = await validateSelectedColorOptions(data.productId, data.colorOptionIds, tx);
+    let pricing;
+    try {
+      pricing = calculateSouvenirPrice(tier.unitPrice, data.quantity);
+    } catch (error) {
+      throw new BadRequestError(error.message);
+    }
+    const { unitPriceSnapshot, totalPriceSnapshot } = pricing;
     const created = await souvenirDb.createSouvenirOrder({
       publicReference,
       accessTokenHash,
@@ -298,7 +309,8 @@ export const createGuestSouvenirOrder = async (data) => {
       productNameSnapshot: product.name,
       priceTierLabelSnapshot: tier.label,
       quantity: data.quantity,
-      totalPriceSnapshot: tier.totalPrice,
+      unitPriceSnapshot,
+      totalPriceSnapshot,
       currency: tier.currency,
       bookingTermsSnapshot: product.bookingTerms,
       productionLeadTimeDaysSnapshot: product.productionLeadTimeDays,
@@ -334,6 +346,7 @@ export const createGuestSouvenirOrder = async (data) => {
       publicReference: order.publicReference,
       productName: order.productNameSnapshot,
       quantity: order.quantity,
+      unitPrice: order.unitPriceSnapshot,
       totalPrice: order.totalPriceSnapshot,
       currency: order.currency,
       status: payment ? "AWAITING_PAYMENT" : order.status,
@@ -363,6 +376,7 @@ export const getGuestSouvenirOrder = async (token) => {
     customerName: order.customerName,
     productName: order.productNameSnapshot,
     quantity: order.quantity,
+    unitPrice: order.unitPriceSnapshot,
     totalPrice: order.totalPriceSnapshot,
     currency: order.currency,
     status: order.status,

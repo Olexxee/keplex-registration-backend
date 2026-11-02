@@ -8,9 +8,9 @@ const publicInclude = {
     select: { id: true, name: true, colorHex: true, swatchImageUrl: true, displayOrder: true },
   },
   priceTiers: {
-    where: { active: true },
+    where: { active: true, unitPrice: { not: null } },
     orderBy: [{ minQuantity: "asc" }, { displayOrder: "asc" }],
-    select: { id: true, label: true, minQuantity: true, maxQuantity: true, totalPrice: true, currency: true, displayOrder: true },
+    select: { id: true, label: true, minQuantity: true, maxQuantity: true, unitPrice: true, currency: true, displayOrder: true },
   },
 };
 const adminInclude = {
@@ -35,6 +35,15 @@ export const listAdminProducts = (tx = prisma) => tx.souvenirProduct.findMany({
 export const findProductById = (id, tx = prisma) => tx.souvenirProduct.findUnique({
   where: { id }, include: adminInclude,
 });
+export const findProductIdById = (id, tx = prisma) => tx.souvenirProduct.findUnique({
+  where: { id },
+  select: { id: true },
+});
+export const findPrimaryProductMedia = (productId, tx = prisma) => tx.souvenirProductMedia.findFirst({
+  where: { productId, isPrimary: true },
+  select: { id: true },
+});
+
 export const findProductBySlug = (slug, tx = prisma) => tx.souvenirProduct.findUnique({
   where: { slug }, select: { id: true, slug: true },
 });
@@ -64,7 +73,7 @@ export const clearPrimaryProductMedia = (productId, tx = prisma) => tx.souvenirP
   where: { productId, isPrimary: true }, data: { isPrimary: false },
 });
 export const getActivePriceTierCount = (productId, tx = prisma) => tx.souvenirPriceTier.count({
-  where: { productId, active: true },
+  where: { productId, active: true, unitPrice: { not: null } },
 });
 
 export const findActiveColorOptionsByIds = (productId, ids, tx = prisma) =>
@@ -94,7 +103,7 @@ export const findActiveProductForOrder = (id, tx = prisma) =>
     where: { id, active: true },
     include: {
       colorOptions: { where: { active: true } },
-      priceTiers: { where: { active: true } },
+      priceTiers: { where: { active: true, unitPrice: { not: null } } },
     },
   });
 
