@@ -17,7 +17,10 @@ Example JSON:
   "customerWhatsApp": "+2348012345678",
   "productId": "souvenir_product_id",
   "quantity": 30,
-  "colorOptionIds": ["active_color_id_1", "active_color_id_2"],
+  "colorSelections": [
+    { "name": "Navy", "colorHex": "#17324D" },
+    { "name": "Gold", "colorHex": "#D4A85A" }
+  ],
   "customerNotes": "Please confirm the production lead time."
 }
 ```

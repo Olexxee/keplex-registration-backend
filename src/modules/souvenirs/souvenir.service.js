@@ -6,6 +6,9 @@ import crypto from "node:crypto";
 import { uploadMedia, deleteMedia } from "../../lib/cloudinaryMedia.js";
 import * as paymentService from "../payment/payment.service.js";
 import { calculateSouvenirPrice, findMatchingPriceTier, quantityRangesOverlap } from "./souvenir.pricing.js";
+import { validateSelectedColors } from "./souvenir.colors.js";
+
+
 
 const makeSlug = (value) => slugify(value, { lower: true, strict: true, trim: true });
 
@@ -77,23 +80,7 @@ export const setProductActive = async (id, active) => {
   return souvenirDb.updateProduct(id, { active });
 };
 
-export const validateSelectedColorOptions = async (productId, colorOptionIds, tx) => {
-  if (!Array.isArray(colorOptionIds) || colorOptionIds.length < 1 || colorOptionIds.length > 5) {
-    throw new BadRequestError("Select between one and five colours");
-  }
-  if (new Set(colorOptionIds).size !== colorOptionIds.length) {
-    throw new BadRequestError("Selected colours must be unique");
-  }
-  const colors = await souvenirDb.findActiveColorOptionsByIds(productId, colorOptionIds, tx);
-  if (colors.length !== colorOptionIds.length) {
-    throw new BadRequestError("Every selected colour must be active and belong to the selected souvenir");
-  }
-  return colors.map((color) => ({
-    colorOptionId: color.id,
-    nameSnapshot: color.name,
-    colorHexSnapshot: color.colorHex,
-  }));
-};
+
 
 export const createColorOption = async (productId, data) => {
   await requireProduct(productId);
@@ -290,7 +277,7 @@ export const createGuestSouvenirOrder = async (data) => {
       throw new BadRequestError("Only NGN souvenir orders are currently supported");
     }
 
-    const colorSnapshots = await validateSelectedColorOptions(data.productId, data.colorOptionIds, tx);
+    const colorSnapshots = validateSelectedColors(data.colorSelections);
     let pricing;
     try {
       pricing = calculateSouvenirPrice(tier.unitPrice, data.quantity);
@@ -318,15 +305,7 @@ export const createGuestSouvenirOrder = async (data) => {
       status: "SUBMITTED",
     }, tx);
 
-    await souvenirDb.createSouvenirOrderColors(created.id, colorSnapshots.map((color) => {
-      const source = product.colorOptions.find((option) => option.id === color.colorOptionId);
-      return {
-        colorOptionId: color.colorOptionId,
-        nameSnapshot: color.nameSnapshot,
-        colorHexSnapshot: color.colorHexSnapshot,
-        swatchImageUrlSnapshot: source?.swatchImageUrl ?? null,
-      };
-    }), tx);
+    await souvenirDb.createSouvenirOrderColors(created.id, colorSnapshots, tx);
 
     return souvenirDb.findSouvenirOrderById(created.id, tx);
   });
