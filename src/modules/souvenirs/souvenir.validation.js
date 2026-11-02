@@ -81,10 +81,13 @@ export const colorIdParamsSchema = z.object({ colorId: z.string().trim().min(1) 
 export const tierIdParamsSchema = z.object({ tierId: z.string().trim().min(1) });
 export const mediaIdParamsSchema = z.object({ mediaId: z.string().trim().min(1) });
 
-export const selectedColorOptionIdsSchema = z.array(z.string().trim().min(1))
+export const selectedColorSelectionsSchema = z.array(z.object({
+  name: z.string().trim().min(1).max(40),
+  colorHex: hexColor,
+}))
   .min(1, "Select at least one colour")
   .max(5, "You can select a maximum of five colours")
-  .refine((ids) => new Set(ids).size === ids.length, "Colours must be unique");
+  .refine((colors) => new Set(colors.map((color) => color.name.toLowerCase())).size === colors.length, "Colours must be unique");
 
 
 const guestContact = {
@@ -97,12 +100,12 @@ export const createSouvenirOrderSchema = z.object({
   ...guestContact,
   productId: z.string().trim().min(1),
   quantity: z.coerce.number().int().min(1).max(100000),
-  colorOptionIds: z.preprocess((value) => {
+  colorSelections: z.preprocess((value) => {
     if (typeof value === "string") {
-      try { return JSON.parse(value); } catch { return value.split(",").map((item) => item.trim()).filter(Boolean); }
+      try { return JSON.parse(value); } catch { return value; }
     }
     return value;
-  }, selectedColorOptionIdsSchema),
+  }, selectedColorSelectionsSchema),
   customerNotes: z.string().trim().max(3000).optional().nullable(),
 });
 
