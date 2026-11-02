@@ -1,6 +1,8 @@
 name: Souvenir backend validation
 
 on:
+  push:
+    branches: [fix/render-souvenir-media-upload]
   pull_request:
     branches: [main]
     paths:
