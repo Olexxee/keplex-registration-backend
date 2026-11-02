@@ -8,9 +8,9 @@ const publicInclude = {
     select: { id: true, name: true, colorHex: true, swatchImageUrl: true, displayOrder: true },
   },
   priceTiers: {
-    where: { active: true },
+    where: { active: true, unitPrice: { not: null } },
     orderBy: [{ minQuantity: "asc" }, { displayOrder: "asc" }],
-    select: { id: true, label: true, minQuantity: true, maxQuantity: true, totalPrice: true, currency: true, displayOrder: true },
+    select: { id: true, label: true, minQuantity: true, maxQuantity: true, unitPrice: true, currency: true, displayOrder: true },
   },
 };
 const adminInclude = {
