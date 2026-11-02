@@ -44,7 +44,7 @@ export const validateSelectedColors = (colorSelections) => {
     };
   });
 
-  if (new Set(normalized.map((color) => color.name.toLowerCase())).size !== normalized.length) {
+  if (new Set(normalized.map((color) => color.nameSnapshot.toLowerCase())).size !== normalized.length) {
     throw new BadRequestError("Selected colours must be unique");
   }
   return normalized;
