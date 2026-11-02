@@ -8,7 +8,7 @@ const priceTierFields = z.object({
   label: z.string().trim().min(1).max(120),
   minQuantity: z.coerce.number().int().min(1),
   maxQuantity: z.coerce.number().int().min(1).optional().nullable(),
-  totalPrice: z.coerce.number().positive().max(9999999999.99),
+  unitPrice: z.coerce.number().positive().max(9999999999.99),
   currency: z
     .string()
     .trim()
@@ -83,7 +83,7 @@ export const mediaIdParamsSchema = z.object({ mediaId: z.string().trim().min(1) 
 
 export const selectedColorOptionIdsSchema = z.array(z.string().trim().min(1))
   .min(1, "Select at least one colour")
-  .max(3, "You can select a maximum of three colours")
+  .max(5, "You can select a maximum of five colours")
   .refine((ids) => new Set(ids).size === ids.length, "Colours must be unique");
 
 
