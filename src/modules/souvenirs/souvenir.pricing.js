@@ -31,3 +31,11 @@ export const calculateSouvenirPrice = (unitPrice, quantity) => {
     totalPriceSnapshot: fromMinorUnits(totalMinor),
   };
 };
+
+export const quantityMatchesTier = (tier, quantity) => quantity >= tier.minQuantity && (tier.maxQuantity == null || quantity <= tier.maxQuantity);
+export const findMatchingPriceTier = (tiers, quantity) => tiers.find((tier) => tier.unitPrice != null && quantityMatchesTier(tier, quantity));
+export const quantityRangesOverlap = (a, b) => {
+  const aMax = a.maxQuantity ?? Number.POSITIVE_INFINITY;
+  const bMax = b.maxQuantity ?? Number.POSITIVE_INFINITY;
+  return a.minQuantity <= bMax && b.minQuantity <= aMax;
+};
