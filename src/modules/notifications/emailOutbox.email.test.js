@@ -42,7 +42,7 @@ test("sends the paid training email through Resend with safe HTML and stable ide
   assert.equal(request.url, "https://api.resend.com/emails");
   assert.equal(request.options.headers["Idempotency-Key"], "training-telegram-access-outbox_123");
   assert.equal(request.body.reply_to, "support@example.com");
-  assert.match(request.body.html, /&lt;script&gt;alert(1)&lt;/script&gt;/);
-  assert.doesNotMatch(request.body.html, /<script>alert(1)</script>/);
+  assert.ok(request.body.html.includes("&lt;script&gt;alert(1)&lt;/script&gt;"));
+  assert.equal(request.body.html.includes("<script>alert(1)</script>"), false);
   assert.match(request.body.text, /https://t.me/example/);
 });
