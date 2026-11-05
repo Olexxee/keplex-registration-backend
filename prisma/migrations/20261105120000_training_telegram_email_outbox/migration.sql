@@ -23,5 +23,3 @@ CREATE TABLE "EmailOutbox" (
 CREATE UNIQUE INDEX "EmailOutbox_registrationId_type_key" ON "EmailOutbox"("registrationId", "type");
 CREATE INDEX "EmailOutbox_status_availableAt_idx" ON "EmailOutbox"("status", "availableAt");
 CREATE INDEX "EmailOutbox_status_lockedAt_idx" ON "EmailOutbox"("status", "lockedAt");
-
-ALTER TABLE "Payment" ADD COLUMN "onboardingSnapshot" JSONB;

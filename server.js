@@ -22,7 +22,7 @@ const startServer = async () => {
       console.error("HTTP server error:", error);
 
       await stopEmailOutboxWorker();
-    await prisma.$disconnect().catch((disconnectError) => {
+      await prisma.$disconnect().catch((disconnectError) => {
         console.error("Database disconnect error:", disconnectError);
       });
 
@@ -66,6 +66,7 @@ const startServer = async () => {
   } catch (error) {
     console.error("Failed to start server:", error);
 
+    await stopEmailOutboxWorker();
     await prisma.$disconnect().catch((disconnectError) => {
       console.error("Database disconnect error:", disconnectError);
     });

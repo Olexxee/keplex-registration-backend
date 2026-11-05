@@ -97,9 +97,18 @@ export const initializeSouvenirPayment = async ({ orderId, accessToken }) => {
 };
 export const initializePayment = async ({ name, email, trainingProgramId }) => {
   /*
-   * Load authoritative programme configuration before creating
-   * a registration, so an incomplete onboarding setup cannot
-   * leave an unnecessary pending registration behind.
+   * Registration creation and validation now belongs
+   * to the registration module.
+   */
+  const registration = await registrationService.createRegistration({
+    name,
+    email,
+    trainingProgramId,
+  });
+
+  /*
+   * We still need the program's authoritative price/currency.
+   * This comes from the database, never from the frontend.
    */
   const program = await paymentDb.findTrainingProgram(trainingProgramId);
 
@@ -110,12 +119,6 @@ export const initializePayment = async ({ name, email, trainingProgramId }) => {
   if (!program.telegramGroupUrl) {
     throw new BadRequestError("This training program is not ready for paid registration. Contact the academy.");
   }
-
-  const registration = await registrationService.createRegistration({
-    name,
-    email,
-    trainingProgramId,
-  });
 
   if (program.currency !== "NGN") {
     throw new BadRequestError("Only NGN payments are currently supported");
@@ -139,12 +142,6 @@ export const initializePayment = async ({ name, email, trainingProgramId }) => {
     amount: program.price,
     currency: program.currency,
     status: "PENDING",
-    onboardingSnapshot: {
-      name: registration.name,
-      email: registration.email,
-      programTitle: program.title,
-      telegramGroupUrl: program.telegramGroupUrl,
-    },
   });
 
   try {
@@ -254,18 +251,8 @@ const applyVerifiedTransaction = async (reference, transaction) => {
     if (payment.registrationId && status === "SUCCESS") {
       const updatedRegistration = await registrationService.markRegistrationPaid(payment.registrationId, tx);
       registrationStatus = updatedRegistration.status;
-      const onboardingSnapshot = payment.onboardingSnapshot ?? (payment.registration ? {
-        name: payment.registration.name,
-        email: payment.registration.email,
-        programTitle: payment.registration.trainingProgram?.title,
-        telegramGroupUrl: payment.registration.trainingProgram?.telegramGroupUrl,
-      } : null);
-      if (onboardingSnapshot && payment.registrationId) {
-        await emailOutboxService.enqueueTrainingTelegramAccessEmail(
-          payment.registrationId,
-          onboardingSnapshot,
-          tx,
-        );
+      if (payment.registration) {
+        await emailOutboxService.enqueueTrainingTelegramAccessEmail(payment.registration, tx);
       }
     } else if (payment.registrationId && status === "REVERSED") {
       const updatedRegistration = await registrationService.markRegistrationPending(payment.registrationId, tx);

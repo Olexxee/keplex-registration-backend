@@ -179,7 +179,6 @@ model Payment {
   authorizationUrl String?
   accessCode       String?
   providerPayload  Json?
-  onboardingSnapshot Json?
 
   paidAt    DateTime?
   createdAt DateTime  @default(now())

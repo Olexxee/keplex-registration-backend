@@ -1,8 +1,8 @@
 import * as outboxDb from "./emailOutbox.db.js";
 import { sendTrainingTelegramAccessEmail } from "./emailOutbox.email.js";
 
-const POLL_INTERVAL_MS = Number(process.env.EMAIL_OUTBOX_POLL_INTERVAL_MS) || 5000;
-const MAX_ATTEMPTS = Number(process.env.EMAIL_OUTBOX_MAX_ATTEMPTS) || 8;
+const POLL_INTERVAL_MS = Math.max(1000, Number(process.env.EMAIL_OUTBOX_POLL_INTERVAL_MS) || 5000);
+const MAX_ATTEMPTS = Math.max(1, Number(process.env.EMAIL_OUTBOX_MAX_ATTEMPTS) || 8);
 let timer = null;
 let isPolling = false;
 let stopped = false;
