@@ -8,6 +8,7 @@ import { cloudinary } from "../../config/cloudinary.js";
 import * as db from "./certificate.db.js";
 import {
   createCertificatePdf,
+  downloadCertificateDocument,
   getProofAccessUrl,
   uploadCertificateDocument,
   uploadProofFile,
@@ -152,7 +153,7 @@ const createAndEmailCertificate = async ({
 
   const number = certificateNumber();
   const issuedAt = new Date();
-  const pdfBuffer = createCertificatePdf({
+  const pdfBuffer = await createCertificatePdf({
     studentName: name,
     trainingProgramTitle: title,
     certificateNumber: number,
@@ -318,7 +319,7 @@ export const resendCertificate = async (id) => {
     throw new BadRequestError("A revoked certificate cannot be emailed.");
   }
 
-  const pdfBuffer = createPdfForCertificate(certificate);
+  const pdfBuffer = await downloadCertificateDocument(certificate.documentPublicId);
   try {
     await sendCertificateEmail({ certificate, pdfBuffer });
   } catch (error) {
