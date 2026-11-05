@@ -87,7 +87,7 @@ The backend composes certificate data into the decorative SVG, inserts the offic
 
 This avoids adding a browser runtime or native rendering dependency to the Render service. The trade-off is that the current PDF is a 300-DPI raster page rather than a vector/text-selectable document. Font-family declarations currently use system fallbacks; Sora, Inter and Cormorant Garamond font binaries are not yet embedded. Visual review is required before treating this as final.
 
-The QR target is FRONTEND_URL followed by /certificates, a number query parameter, and the verify-certificate anchor. The frontend verification page must consume the number query parameter to prefill its form; that frontend adjustment is a separate follow-up and is not included in this backend phase.
+The QR target is FRONTEND_URL followed by /certificates, a number query parameter, and the verify-certificate anchor. The frontend verification page must consume the number query parameter to prefill its form; the frontend now pre-fills the number and verifies it automatically.
 
 Resend retrieves the originally stored PDF from authenticated Cloudinary storage instead of regenerating it. This preserves the exact issued artifact across retries and branding changes.
 
