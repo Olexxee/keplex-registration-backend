@@ -140,8 +140,6 @@ export const createCertificateSvg = async ({
     <text x="186" y="391">work, the recipient has met KPX Academy's requirements for certification.</text>
   </g>
   <g fill="#17324D">
-    <path d="M202 468 L236 448 M236 448 Q254 437 272 445 M272 445 L300 438" fill="none" stroke="#777777" stroke-width="1.1" stroke-linecap="round" opacity=".7"/>
-    <path d="M565 468 L599 448 M599 448 Q617 437 635 445 M635 445 L663 438" fill="none" stroke="#777777" stroke-width="1.1" stroke-linecap="round" opacity=".7"/>
     <path d="M186 479 H340 M545 479 H690" stroke="#252525" stroke-width="1.1"/>
     <circle cx="186" cy="479" r="1.8" fill="#252525"/><circle cx="340" cy="479" r="1.8" fill="#252525"/>
     <circle cx="545" cy="479" r="1.8" fill="#252525"/><circle cx="690" cy="479" r="1.8" fill="#252525"/>
