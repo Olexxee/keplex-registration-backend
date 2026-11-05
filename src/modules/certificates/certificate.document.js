@@ -79,9 +79,11 @@ const createQrMarkup = (value) => {
   qr.addData(value);
   qr.make();
   const svg = qr.createSvgTag({ cellSize: 5, margin: 4, scalable: true, title: "Verify this KPX Academy certificate" });
-  const match = svg.match(/^<svg[^>]*>([\s\S]*)<\/svg>$/);
-  if (!match) throw new Error("Could not generate the certificate verification QR code.");
-  return match[1];
+  const match = svg.match(/^<svg[^>]*>([\\s\\S]*)<\\/svg>$/);
+  const viewBox = svg.match(/viewBox="0 0 (\\d+) (\\d+)"/);
+  if (!match || !viewBox) throw new Error("Could not generate the certificate verification QR code.");
+  const markup = match[1].replace(/<rect width="100%" height="100%" fill="white"[^>]*\\/>/, "");
+  return { markup, size: Number(viewBox[1]) };
 };
 
 const loadArtwork = async () => {
@@ -107,7 +109,8 @@ export const createCertificateSvg = async ({
   const artworkBody = sourceArtwork.replace(/^\s*<svg[^>]*>/i, "").replace(/<\/svg>\s*$/i, "");
   const date = formatDate(issuedAt);
   const verificationUrl = getVerificationUrl(certificateNumber);
-  const qrMarkup = createQrMarkup(verificationUrl);
+  const qr = createQrMarkup(verificationUrl);
+  const qrScale = 60 / qr.size;
   const safeName = escapeXml(name);
   const safeProgramme = escapeXml(programme.toUpperCase());
   const safeCertificateNumber = escapeXml(certificateNumber);
@@ -148,9 +151,8 @@ export const createCertificateSvg = async ({
     <text x="545" y="501" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700">Date of issue</text>
     <text x="545" y="520" font-family="Georgia, 'Times New Roman', serif" font-size="12" fill="#55524E">${escapeXml(date)}</text>
   </g>
-  <g transform="translate(14 476) scale(.27)">
-    <rect x="0" y="0" width="100%" height="100%" fill="#FFFFFF"/>
-    ${qrMarkup}
+  <g transform="translate(14 476) scale(${qrScale})">
+    ${qr.markup}
   </g>
   <text x="15" y="553" font-family="Georgia, 'Times New Roman', serif" font-size="10" font-style="italic" fill="#55524E">Scan to Verify</text>
   <text x="125" y="566" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-style="italic" fill="#55524E">Certificate ID: ${safeCertificateNumber}</text>
