@@ -114,7 +114,7 @@ export const createCertificateSvg = async ({
   const nameSize = Math.min(42, Math.max(25, 42 - Math.max(0, [...name].length - 22) * 0.65));
   const programmeSize = Math.min(27, Math.max(17, 27 - Math.max(0, [...programme].length - 28) * 0.32));
   const logoMarkup = logoDataUri
-    ? `<image href="${logoDataUri}" x="566" y="76" width="170" height="70" preserveAspectRatio="xMidYMid meet"/>`
+    ? `<image href="${logoDataUri}" xlink:href="${logoDataUri}" x="566" y="76" width="170" height="70" preserveAspectRatio="xMidYMid meet"/>`
     : `<text x="651" y="111" text-anchor="middle" font-family="Sora, Arial, sans-serif" font-size="24" font-weight="800" letter-spacing="2" fill="#17324D">KPX</text><text x="651" y="132" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="10" letter-spacing="5" fill="#2A7F7F">ACADEMY</text>`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
