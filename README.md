@@ -1105,7 +1105,7 @@ Do not use `prisma migrate dev` against production.
 
 - Monitor Render logs for `[EmailOutbox]` messages.
 - Jobs in `DEAD` require investigation before manual re-queue.
-- The outbox snapshots the student's name, email, programme title and Telegram URL at payment confirmation, so later programme edits do not alter already queued email content.
+- The payment stores a snapshot of the student's name, email, programme title and Telegram URL when checkout is initialized. That snapshot is copied into the outbox when payment is confirmed, so later programme edits do not alter in-flight checkout email content.
 - Do not remove a programme's Telegram link while checkouts are in progress.
 - Certificate redesign is intentionally deferred to the final phase.
 
