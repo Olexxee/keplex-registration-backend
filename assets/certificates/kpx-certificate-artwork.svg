@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="210mm" viewBox="0 0 842 595" role="img" aria-labelledby="title desc">
+  <title id="title">KPX Academy certificate decorative artwork</title>
+  <desc id="desc">A4 landscape certificate background with a teal and gold award ribbon on the left, a layered navy and teal geometric panel on the right, and a raised white logo plaque.</desc>
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFEFC"/><stop offset=".52" stop-color="#F7F5F0"/><stop offset="1" stop-color="#F1EEE7"/></linearGradient>
+    <linearGradient id="ribbon" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#155B60"/><stop offset=".48" stop-color="#2A7F7F"/><stop offset="1" stop-color="#155B60"/></linearGradient>
+    <linearGradient id="ribbonTail" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2A7F7F"/><stop offset=".55" stop-color="#155B60"/><stop offset="1" stop-color="#0E4148"/></linearGradient>
+    <linearGradient id="goldMetal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF0B4"/><stop offset=".16" stop-color="#E9C66F"/><stop offset=".34" stop-color="#B9822E"/><stop offset=".52" stop-color="#F6DE91"/><stop offset=".72" stop-color="#D4A85A"/><stop offset=".88" stop-color="#F9E6A5"/><stop offset="1" stop-color="#A87327"/></linearGradient>
+    <radialGradient id="medalFace" cx=".32" cy=".24" r=".82"><stop offset="0" stop-color="#FFF4C5"/><stop offset=".24" stop-color="#F4D77F"/><stop offset=".55" stop-color="#D4A85A"/><stop offset=".78" stop-color="#F0D17C"/><stop offset="1" stop-color="#A87327"/></radialGradient>
+    <linearGradient id="navyPanel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#24465D"/><stop offset=".32" stop-color="#17324D"/><stop offset=".72" stop-color="#102638"/><stop offset="1" stop-color="#0A1D2B"/></linearGradient>
+    <linearGradient id="tealEdge" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#17324D"/><stop offset=".42" stop-color="#2A7F7F"/><stop offset=".72" stop-color="#66AAA2"/><stop offset="1" stop-color="#17324D"/></linearGradient>
+    <linearGradient id="tealHighlight" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#75B7AE"/><stop offset=".45" stop-color="#2A7F7F"/><stop offset="1" stop-color="#164F59"/></linearGradient>
+    <linearGradient id="plaque" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#F5F4F0"/></linearGradient>
+    <filter id="plaqueShadow" x="-20%" y="-25%" width="150%" height="170%"><feGaussianBlur in="SourceAlpha" stdDeviation="6" result="blur"/><feOffset dx="-2" dy="7" result="offset"/><feComponentTransfer><feFuncA type="linear" slope=".30"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="medalShadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur"/><feOffset dx="1" dy="3" result="offset"/><feComponentTransfer><feFuncA type="linear" slope=".24"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <pattern id="paperGrain" width="34" height="34" patternUnits="userSpaceOnUse"><circle cx="4" cy="8" r=".45" fill="#17324D" opacity=".035"/><circle cx="23" cy="25" r=".35" fill="#D4A85A" opacity=".05"/></pattern>
+    <g id="rosette">
+      <path d="M0,-49 L5,-43 L13,-47 L16,-39 L25,-41 L26,-32 L36,-32 L34,-23 L43,-18 L38,-10 L47,-3 L40,4 L46,13 L36,18 L39,28 L29,30 L28,40 L18,39 L13,48 L4,43 L-4,49 L-10,40 L-20,43 L-24,33 L-34,34 L-35,24 L-44,19 L-40,9 L-49,2 L-42,-6 L-47,-15 L-37,-20 L-39,-30 L-29,-32 L-27,-42 L-17,-40 L-12,-49 L-3,-44 Z" fill="url(#ribbon)" stroke="#0F535A" stroke-width="1.2"/>
+      <circle r="40" fill="url(#goldMetal)" stroke="#9D712E" stroke-width="1.5"/><circle r="34" fill="url(#medalFace)" stroke="#F9E8A8" stroke-width="1.2"/><circle r="28.5" fill="none" stroke="#B98537" stroke-width=".8" opacity=".55"/><path d="M-21,-20 Q-8,-34 12,-28" fill="none" stroke="#FFF8D8" stroke-width="2.4" stroke-linecap="round" opacity=".55"/>
+    </g>
+  </defs>
+  <rect width="842" height="595" fill="url(#paper)"/><rect width="842" height="595" fill="url(#paperGrain)"/>
+  <path d="M78 0 H116 V188 L99 218 L78 193 Z" fill="url(#ribbonTail)"/><path d="M89 0 H94 V198 L89 205 Z" fill="#D4A85A"/><path d="M96 0 H101 V192 L96 201 Z" fill="#F2D98E" opacity=".78"/>
+  <path d="M78 176 L51 224 L81 216 L91 246 L108 216 L137 224 L116 176 Z" fill="url(#ribbonTail)"/><path d="M91 184 L70 220 L86 215 L93 231 L104 213 L122 219 L109 184 Z" fill="#0E555C" opacity=".7"/><path d="M91 185 L96 190 L96 228 L91 237 Z" fill="#D4A85A"/>
+  <path d="M673 0 H842 V595 H648 L720 427 L758 330 L704 245 L738 147 Z" fill="url(#navyPanel)"/>
+  <path d="M673 0 H706 L770 234 L842 0 Z" fill="#0B1C28" opacity=".62"/><path d="M726 0 H748 L842 343 V414 L789 292 Z" fill="url(#tealEdge)" opacity=".95"/><path d="M746 0 H757 L842 299 V336 L780 199 Z" fill="#0C202E" opacity=".92"/><path d="M758 0 H777 L842 230 V278 L791 132 Z" fill="#2A7F7F" opacity=".72"/><path d="M842 316 L842 367 L724 595 H685 L788 403 Z" fill="url(#tealHighlight)" opacity=".78"/><path d="M842 378 L842 405 L756 595 H731 Z" fill="#0A1D2B" opacity=".92"/><path d="M842 452 L842 475 L796 595 H775 Z" fill="#2A7F7F" opacity=".55"/><path d="M673 0 L706 0 L768 245 L731 344 L704 245 Z" fill="#FFFFFF" opacity=".035"/>
+  <path d="M735 0 L825 310" fill="none" stroke="#79B7AD" stroke-width="2.2" opacity=".55"/><path d="M744 0 L834 310" fill="none" stroke="#D4A85A" stroke-width="1" opacity=".62"/>
+  <g filter="url(#plaqueShadow)"><path d="M570 59 H714 Q730 59 735 76 L758 142 Q763 159 746 160 H570 Q548 160 548 139 V81 Q548 59 570 59 Z" fill="url(#plaque)" stroke="#E5E2DC" stroke-width="1.2"/><path d="M570 63 H711 Q725 63 730 78" fill="none" stroke="#FFFFFF" stroke-width="2" opacity=".9"/><path d="M550 136 Q551 156 572 156 H744" fill="none" stroke="#D8D6D0" stroke-width="1" opacity=".8"/></g>
+  <g transform="translate(98 112)" filter="url(#medalShadow)"><use href="#rosette"/></g>
+  <rect x=".5" y=".5" width="841" height="594" fill="none" stroke="#E9E3D8" stroke-width="1"/>
+</svg>
