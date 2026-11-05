@@ -80,6 +80,17 @@ Do not bake student names, programme titles, certificate numbers, issue dates, Q
 
 Repository inspection found no committed image/font assets for certificates and no actual KPX Academy logo file in the backend repository. The logo plaque is therefore a reserved placement area. Before CERT-03, obtain the official transparent PNG or SVG logo and, if available, the approved founder signature asset. Do not recreate or approximate the logo using typed text.
 
+
+## CERT-02 rendering implementation
+
+The backend composes certificate data into the decorative SVG, inserts the official Site Branding logo when it can be retrieved from Cloudinary, generates a QR code using the vendored MIT-licensed qrcode-generator implementation, and renders the composed artwork through Cloudinary at 3508 × 2480 before wrapping the JPEG in an A4 landscape PDF.
+
+This avoids adding a browser runtime or native rendering dependency to the Render service. The trade-off is that the current PDF is a 300-DPI raster page rather than a vector/text-selectable document. Font-family declarations currently use system fallbacks; Sora, Inter and Cormorant Garamond font binaries are not yet embedded. Visual review is required before treating this as final.
+
+The QR target is FRONTEND_URL followed by /certificates, a number query parameter, and the verify-certificate anchor. The frontend verification page must consume the number query parameter to prefill its form; that frontend adjustment is a separate follow-up and is not included in this backend phase.
+
+Resend retrieves the originally stored PDF from authenticated Cloudinary storage instead of regenerating it. This preserves the exact issued artifact across retries and branding changes.
+
 ## Acceptance criteria for CERT-01
 
 - Decorative artwork is a standalone, valid SVG at A4 landscape proportions.
