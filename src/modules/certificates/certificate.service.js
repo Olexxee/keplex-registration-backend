@@ -271,14 +271,6 @@ export const issueDirectly = async (data, adminId) => {
   });
 };
 
-const createPdfForCertificate = (certificate) =>
-  createCertificatePdf({
-    studentName: certificate.studentName,
-    trainingProgramTitle: certificate.trainingProgramTitle,
-    certificateNumber: certificate.certificateNumber,
-    issuedAt: certificate.issuedAt,
-  });
-
 const withDocumentAccessUrl = (certificate) => ({
   ...certificate,
   documentAccessUrl: cloudinary.url(certificate.documentPublicId, {
