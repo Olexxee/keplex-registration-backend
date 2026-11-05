@@ -193,7 +193,7 @@ const renderSvgToJpeg = async (svg) => {
       signal: AbortSignal.timeout(30000),
     });
     if (!response.ok) {
-      throw new Error(`Certificate artwork rendering failed (${response.status}). Check Cloudinary image transformation and PDF delivery settings.`);
+      throw new Error(`Certificate artwork rendering failed (${response.status}). Check Cloudinary authenticated image transformation permissions.`);
     }
     const jpeg = Buffer.from(await response.arrayBuffer());
     if (jpeg.length < 4 || jpeg[0] !== 0xff || jpeg[1] !== 0xd8 || jpeg[2] !== 0xff) {
