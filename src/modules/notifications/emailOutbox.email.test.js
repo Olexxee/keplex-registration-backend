@@ -44,5 +44,5 @@ test("sends the paid training email through Resend with safe HTML and stable ide
   assert.equal(request.body.reply_to, "support@example.com");
   assert.ok(request.body.html.includes("&lt;script&gt;alert(1)&lt;/script&gt;"));
   assert.equal(request.body.html.includes("<script>alert(1)</script>"), false);
-  assert.match(request.body.text, /https://t.me/example/);
+  assert.ok(request.body.text.includes("https://t.me/example"));
 });
