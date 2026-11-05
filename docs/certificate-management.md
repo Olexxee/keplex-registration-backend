@@ -105,7 +105,7 @@ New certificates are rendered entirely by the backend:
 
 The current output is a high-resolution, single-page raster PDF: the artwork and text are flattened into the page image, so PDF text selection/accessibility is not available yet. The design uses Sora, Inter and Cormorant Garamond font-family declarations with system fallbacks; those font files are not embedded in this phase. Confirm actual glyph rendering and print output against the reference before claiming the visual target is met.
 
-The QR code points to `FRONTEND_URL/certificates?number=<certificate-number>#verify-certificate`. The certificate page must read the `number` query parameter and prefill its verification field for a one-scan verification experience. The existing API verification endpoint remains `GET /verify/:certificateNumber`.
+The QR code points to `FRONTEND_URL/certificates?number=<certificate-number>#verify-certificate`. The KPX Academy frontend certificate page consumes the `number` query parameter, prefills the field, and automatically calls the public verification endpoint. The API verification endpoint remains `GET /verify/:certificateNumber`.
 
 ### Resending
 
