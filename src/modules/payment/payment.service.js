@@ -4,6 +4,7 @@ import { BadRequestError, NotFoundError } from "../../classes/errorClasses.js";
 import * as paymentDb from "./payment.db.js";
 import * as registrationService from "../registration/registration.service.js";
 import * as souvenirDb from "../souvenirs/souvenir.db.js";
+import * as emailOutboxService from "../notifications/emailOutbox.service.js";
 import {
   initializePaystackTransaction,
   verifyPaystackTransaction,
@@ -113,6 +114,10 @@ export const initializePayment = async ({ name, email, trainingProgramId }) => {
 
   if (!program) {
     throw new NotFoundError("Training program not found");
+  }
+
+  if (!program.telegramGroupUrl) {
+    throw new BadRequestError("This training program is not ready for paid registration. Contact the academy.");
   }
 
   if (program.currency !== "NGN") {
@@ -246,6 +251,9 @@ const applyVerifiedTransaction = async (reference, transaction) => {
     if (payment.registrationId && status === "SUCCESS") {
       const updatedRegistration = await registrationService.markRegistrationPaid(payment.registrationId, tx);
       registrationStatus = updatedRegistration.status;
+      if (payment.registration) {
+        await emailOutboxService.enqueueTrainingTelegramAccessEmail(payment.registration, tx);
+      }
     } else if (payment.registrationId && status === "REVERSED") {
       const updatedRegistration = await registrationService.markRegistrationPending(payment.registrationId, tx);
       registrationStatus = updatedRegistration.status;

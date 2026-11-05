@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { app } from "./src/app.js";
 import { prisma } from "./src/config/prisma.js";
+import { startEmailOutboxWorker, stopEmailOutboxWorker } from "./src/modules/notifications/emailOutbox.worker.js";
 
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = "0.0.0.0";
@@ -11,6 +12,7 @@ const startServer = async () => {
   try {
     await prisma.$connect();
     console.log("Database connected");
+    startEmailOutboxWorker();
 
     const server = app.listen(PORT, HOST, () => {
       console.log(`Keplex Registration API running on ${HOST}:${PORT}`);
@@ -19,7 +21,8 @@ const startServer = async () => {
     server.on("error", async (error) => {
       console.error("HTTP server error:", error);
 
-      await prisma.$disconnect().catch((disconnectError) => {
+      await stopEmailOutboxWorker();
+    await prisma.$disconnect().catch((disconnectError) => {
         console.error("Database disconnect error:", disconnectError);
       });
 
@@ -47,6 +50,7 @@ const startServer = async () => {
           });
         });
 
+        await stopEmailOutboxWorker();
         await prisma.$disconnect();
 
         console.log("Database disconnected");
