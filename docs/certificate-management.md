@@ -91,6 +91,33 @@ Configure these on the backend host and in local `.env`:
 
 If email configuration is missing or delivery fails, issuance still succeeds and records the delivery error. Configure email before production issuance.
 
+
+## Certificate document rendering
+
+New certificates are rendered entirely by the backend:
+
+1. The renderer reads the version-controlled decorative SVG at `assets/certificates/kpx-certificate-artwork.svg`.
+2. It loads the current official logo from the existing Site Branding record. Only HTTPS assets hosted on `res.cloudinary.com` are fetched; an absent or unavailable logo falls back to a text wordmark.
+3. It composes the recipient, programme, issue date, certificate number, QR code and verification link into a data-driven SVG.
+4. The backend uploads the temporary SVG as an authenticated Cloudinary image asset and requests a 3508 × 2480 JPEG transformation (A4 landscape at approximately 300 DPI).
+5. The backend wraps that JPEG in a single-page A4 landscape PDF and stores the resulting PDF using the existing authenticated raw-file workflow.
+6. The temporary SVG asset is deleted after rendering, including when rendering fails.
+
+The current output is a high-resolution, single-page raster PDF: the artwork and text are flattened into the page image, so PDF text selection/accessibility is not available yet. The design uses Sora, Inter and Cormorant Garamond font-family declarations with system fallbacks; those font files are not embedded in this phase. Confirm actual glyph rendering and print output against the reference before claiming the visual target is met.
+
+The QR code points to `FRONTEND_URL/certificates?number=<certificate-number>#verify-certificate`. The certificate page must read the `number` query parameter and prefill its verification field for a one-scan verification experience. The existing API verification endpoint remains `GET /verify/:certificateNumber`.
+
+### Resending
+
+Resending uses the already stored authenticated PDF from Cloudinary. It does not re-render the certificate, so changing the academy logo or artwork later cannot silently alter a previously issued certificate when its email is resent.
+
+### Renderer operations
+
+- The backend needs the existing Cloudinary credentials and permission to create authenticated image assets and perform image transformations.
+- Temporary render assets are stored under `kpx/certificate-renders` and deleted after use.
+- Final certificate PDFs remain under `kpx/certificates` as authenticated raw assets.
+- A Cloudinary transformation failure prevents issuance before the certificate database record is created. The admin can retry after resolving the rendering issue.
+
 ## Apply the migration
 
 ```bash
