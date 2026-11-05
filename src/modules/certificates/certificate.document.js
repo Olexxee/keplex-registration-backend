@@ -79,10 +79,10 @@ const createQrMarkup = (value) => {
   qr.addData(value);
   qr.make();
   const svg = qr.createSvgTag({ cellSize: 5, margin: 4, scalable: true, title: "Verify this KPX Academy certificate" });
-  const match = svg.match(/^<svg[^>]*>([\\s\\S]*)<\\/svg>$/);
-  const viewBox = svg.match(/viewBox="0 0 (\\d+) (\\d+)"/);
+  const match = svg.match(/^<svg[^>]*>([\s\S]*)<\/svg>$/);
+  const viewBox = svg.match(/viewBox="0 0 (\d+) (\d+)"/);
   if (!match || !viewBox) throw new Error("Could not generate the certificate verification QR code.");
-  const markup = match[1].replace(/<rect width="100%" height="100%" fill="white"[^>]*\\/>/, "");
+  const markup = match[1].replace(/<rect width="100%" height="100%" fill="white"[^>]*\/>/, "");
   return { markup, size: Number(viewBox[1]) };
 };
 
