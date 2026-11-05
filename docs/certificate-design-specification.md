@@ -1,12 +1,12 @@
 # KPX Academy Certificate Design Specification
 
-Status: CERT-01 visual specification and decorative artwork  
-Canvas: A4 landscape, 297 × 210 mm (842 × 595 SVG viewBox)  
+Status: CERT-02 implementation committed; awaiting live rendering and visual acceptance
+Canvas: A4 landscape, 297 × 210 mm (842 × 595 SVG viewBox)
 Reference: user-supplied certificate image (1536 × 1086 px)
 
 ## Design objective
 
-Recreate the reference certificate's composition and visual hierarchy while adapting its palette to KPX Academy. The certificate remains a backend-owned, data-driven PDF. This phase defines the artwork and layout contract only; it does not change issuance, persistence, verification, or email delivery.
+Recreate the reference certificate's composition and visual hierarchy while adapting its palette to KPX Academy. The certificate is a backend-owned, data-driven PDF. The frontend only provides the public verification experience; it does not design, position, or render certificate artwork.
 
 ## Brand palette
 
@@ -24,38 +24,32 @@ The artwork uses darker/lighter derived shades of the approved navy, teal and go
 
 - Landscape A4 canvas with an 842 × 595 viewBox.
 - Warm ivory paper field with extremely subtle grain.
-- Left vertical teal ribbon with a narrow gold centre stripe.
+- Full-height left vertical teal ribbon with a narrow gold centre stripe.
 - Layered award rosette near the upper-left corner: serrated teal outer edge, metallic gold rim, warm gold face and restrained highlight.
 - Right-side angular navy panel occupying approximately the final 20% of the page, with layered teal bevels and fine gold/teal highlights.
-- Raised white logo plaque in the upper-right content area. The plaque intentionally contains no invented wordmark: the real KPX Academy logo must be supplied and placed in CERT-03.
-- Main content area remains clear between the medal/ribbon and right panel.
+- Raised white logo plaque in the upper-right content area, populated at render time from the existing Site Branding logo URL. A text wordmark is used only as a fallback when the official logo cannot be retrieved.
 
-## Dynamic content layout contract
+## Dynamic content
 
-The later HTML/SVG composition layer must position these fields independently of the decorative artwork:
+The backend renderer supplies the following per-certificate content independently of the decorative artwork:
 
-1. CERTIFICATE heading.
-2. OF COMPLETION subtitle.
-3. Introductory line.
-4. Student full name (serif display face; measured text fitting, not character-count approximation).
-5. Fine horizontal divider beneath the name.
-6. Training programme title (uppercase display treatment; wrap or shrink within defined bounds).
-7. Achievement statement (configurable template copy with bounded line length).
-8. Founder signature image or approved signature text and founder title.
-9. Issue date.
-10. Certificate number.
-11. QR code resolving to the canonical public verification endpoint.
-12. Verification URL.
+1. CERTIFICATE heading and OF COMPLETION subtitle.
+2. Introductory and achievement copy.
+3. Student full name.
+4. Training programme title.
+5. Issue date and certificate number.
+6. QR code and public verification URL.
+7. Signature line and founder title.
 
-Do not bake student names, programme titles, certificate numbers, issue dates, QR codes, or signatures into the decorative SVG. Those are per-certificate data and belong to the backend rendering layer.
+Student names, programme titles, certificate numbers, issue dates and QR codes are not baked into the decorative SVG. No handwritten signature is fabricated; the signature line remains blank until an approved signature asset or signature text is supplied.
 
 ## Typography direction
 
 - Headings: Sora (bold / extra-bold).
 - Supporting sans-serif text: Inter.
 - Recipient name and certificate number: Cormorant Garamond or a similarly legible serif.
-- Fonts must be bundled/embedded by the backend renderer. Do not rely on fonts installed on the Render host.
-- The final renderer must measure actual glyph widths and support long names and programme titles without clipping or overlap.
+
+Current implementation declares these font families but does not bundle or embed their font files. Rendering therefore depends on the fonts available to Cloudinary's rendering pipeline and its fallbacks. Bundled font embedding and measured text fitting remain follow-up work if the live output shows fallback or clipping issues.
 
 ## Gradient and depth treatment
 
@@ -66,35 +60,38 @@ Do not bake student names, programme titles, certificate numbers, issue dates, Q
 - Paper: near-white/warm-ivory tonal gradient with barely visible texture.
 - Avoid heavy shadows, glossy plastic effects, excessive gold, and pure-black geometry.
 
-## Implementation constraints
+## Implementation
 
-- Backend owns layout, rendering, PDF generation, storage and delivery.
-- The frontend must not generate or position certificate artwork.
-- Keep the decorative SVG separate from per-certificate content.
-- Use the same artwork and renderer for initial issuance and resend; resending must not silently create a visually different document.
-- Preserve the existing certificate record, Cloudinary storage and public verification contract unless a separately reviewed migration is required.
-- Do not invent a QR destination. Use the actual mounted public verification route and configured canonical public site/API origin.
-- A generated PDF must be tested for A4 landscape page size, embedded fonts, text extraction, QR readability, no clipped text and consistent rendering.
+- Decorative artwork: `assets/certificates/kpx-certificate-artwork.svg`.
+- Dynamic SVG composition, official Site Branding logo retrieval, QR generation, Cloudinary rendering and PDF creation: `src/modules/certificates/certificate.document.js`.
+- QR generation uses the vendored MIT-licensed implementation at `src/lib/vendor/qrcode-generator.mjs`; its license is included alongside it.
+- The backend uploads a temporary authenticated SVG render asset, requests a 3508 × 2480 JPEG transformation (approximately 300 DPI), wraps the resulting image in a single-page A4 landscape PDF, and deletes the temporary SVG.
+- Final PDFs continue through the existing authenticated Cloudinary raw-file storage and certificate issuance flow.
+- Resends download and send the originally stored PDF; they do not regenerate it.
+- The frontend certificate page reads the `number` query parameter, prefills the verification field and automatically calls the public verification endpoint. The QR destination is `FRONTEND_URL/certificates?number=<certificate-number>#verify-certificate`.
 
-## Asset dependency
+## Known limitations and live acceptance
 
-Repository inspection found no committed image/font assets for certificates and no actual KPX Academy logo file in the backend repository. The logo plaque is therefore a reserved placement area. Before CERT-03, obtain the official transparent PNG or SVG logo and, if available, the approved founder signature asset. Do not recreate or approximate the logo using typed text.
+The code is committed, but a successful live render has not yet been demonstrated. Do not treat visual fidelity as accepted until a real certificate has been issued and inspected.
 
+The current PDF is a high-resolution raster page, not a vector/text-selectable PDF. Font binaries are not embedded. The signature line is intentionally blank pending an approved asset. Cloudinary authenticated SVG upload, transformation permissions, generated PDF validity and final visual matching still require live verification.
 
-## CERT-02 rendering implementation
+When testing, verify:
 
-The backend composes certificate data into the decorative SVG, inserts the official Site Branding logo when it can be retrieved from Cloudinary, generates a QR code using the vendored MIT-licensed qrcode-generator implementation, and renders the composed artwork through Cloudinary at 3508 × 2480 before wrapping the JPEG in an A4 landscape PDF.
+- [ ] A certificate can be issued through the deployed backend.
+- [ ] The official Site Branding logo loads; fallback behavior is acceptable if it does not.
+- [ ] Cloudinary accepts the authenticated temporary SVG and returns the expected 3508 × 2480 JPEG.
+- [ ] The final document opens as a single-page A4 landscape PDF.
+- [ ] Student name and long programme titles do not clip, overlap or become unreadable.
+- [ ] QR code scans reliably and opens the frontend certificate page with the number prefilled and automatically verified.
+- [ ] The public verification result shows the correct recipient, programme, issue date and validity state.
+- [ ] The certificate email attachment matches the stored PDF.
+- [ ] Resending delivers the exact same stored PDF rather than regenerating it.
+- [ ] Temporary render assets are deleted after both successful and failed render attempts.
+- [ ] Printed output is visually compared against the supplied reference before claiming the target visual match.
 
-This avoids adding a browser runtime or native rendering dependency to the Render service. The trade-off is that the current PDF is a 300-DPI raster page rather than a vector/text-selectable document. Font-family declarations currently use system fallbacks; Sora, Inter and Cormorant Garamond font binaries are not yet embedded. Visual review is required before treating this as final.
+## Operational dependencies
 
-The QR target is FRONTEND_URL followed by /certificates, a number query parameter, and the verify-certificate anchor. The frontend verification page must consume the number query parameter to prefill its form; the frontend now pre-fills the number and verifies it automatically.
+The backend requires valid Cloudinary credentials and permission to upload authenticated image assets, transform them, and delete temporary assets. The logo is read from the existing Site Branding record and must be hosted on the allowed Cloudinary domain. The configured `FRONTEND_URL` should point to the deployed KPX Academy site.
 
-Resend retrieves the originally stored PDF from authenticated Cloudinary storage instead of regenerating it. This preserves the exact issued artifact across retries and branding changes.
-
-## Acceptance criteria for CERT-01
-
-- Decorative artwork is a standalone, valid SVG at A4 landscape proportions.
-- The reference's major composition is retained: left medal/ribbon, central white content field, raised upper-right logo plaque and angular right panel.
-- The approved KPX Academy palette is used with layered tonal gradients.
-- Dynamic certificate fields are not hardcoded into the artwork.
-- No existing certificate API or issuance behavior is changed in this phase.
+Do not change the existing certificate API, persistence model, authenticated storage workflow or issuance semantics as part of visual tuning unless separately reviewed.
