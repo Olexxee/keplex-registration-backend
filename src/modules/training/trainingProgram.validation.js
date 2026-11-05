@@ -4,6 +4,16 @@ const optionalString = z.string().trim().optional().nullable();
 
 const optionalDate = z.coerce.date().optional().nullable();
 
+const optionalTelegramUrl = z.string().trim().url().refine((value) => {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" &&
+      ["t.me", "telegram.me", "www.telegram.me"].includes(parsed.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}, "Telegram group link must be a valid HTTPS t.me or telegram.me URL").optional().nullable();
+
 const contentArray = z.array(z.string().trim().min(1)).optional().nullable();
 
 export const createTrainingProgramSchema = z.object({
@@ -28,6 +38,8 @@ export const createTrainingProgramSchema = z.object({
   deliveryMode: z.enum(["PHYSICAL", "ONLINE", "HYBRID"]).default("PHYSICAL"),
 
   location: optionalString,
+
+  telegramGroupUrl: optionalTelegramUrl,
 
   startDate: optionalDate,
 

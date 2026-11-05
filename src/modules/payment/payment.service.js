@@ -4,6 +4,7 @@ import { BadRequestError, NotFoundError } from "../../classes/errorClasses.js";
 import * as paymentDb from "./payment.db.js";
 import * as registrationService from "../registration/registration.service.js";
 import * as souvenirDb from "../souvenirs/souvenir.db.js";
+import * as emailOutboxService from "../notifications/emailOutbox.service.js";
 import {
   initializePaystackTransaction,
   verifyPaystackTransaction,
@@ -96,18 +97,9 @@ export const initializeSouvenirPayment = async ({ orderId, accessToken }) => {
 };
 export const initializePayment = async ({ name, email, trainingProgramId }) => {
   /*
-   * Registration creation and validation now belongs
-   * to the registration module.
-   */
-  const registration = await registrationService.createRegistration({
-    name,
-    email,
-    trainingProgramId,
-  });
-
-  /*
-   * We still need the program's authoritative price/currency.
-   * This comes from the database, never from the frontend.
+   * Load authoritative programme configuration before creating
+   * a registration, so incomplete onboarding setup cannot leave
+   * an unnecessary pending registration behind.
    */
   const program = await paymentDb.findTrainingProgram(trainingProgramId);
 
@@ -115,9 +107,19 @@ export const initializePayment = async ({ name, email, trainingProgramId }) => {
     throw new NotFoundError("Training program not found");
   }
 
+  if (!program.telegramGroupUrl) {
+    throw new BadRequestError("This training program is not ready for paid registration. Contact the academy.");
+  }
+
   if (program.currency !== "NGN") {
     throw new BadRequestError("Only NGN payments are currently supported");
   }
+
+  const registration = await registrationService.createRegistration({
+    name,
+    email,
+    trainingProgramId,
+  });
 
   const amountInMinorUnits = toMinorUnits(program.price);
 
@@ -137,6 +139,12 @@ export const initializePayment = async ({ name, email, trainingProgramId }) => {
     amount: program.price,
     currency: program.currency,
     status: "PENDING",
+    onboardingSnapshot: {
+      name: registration.name,
+      email: registration.email,
+      programTitle: program.title,
+      telegramGroupUrl: program.telegramGroupUrl,
+    },
   });
 
   try {
@@ -246,6 +254,24 @@ const applyVerifiedTransaction = async (reference, transaction) => {
     if (payment.registrationId && status === "SUCCESS") {
       const updatedRegistration = await registrationService.markRegistrationPaid(payment.registrationId, tx);
       registrationStatus = updatedRegistration.status;
+      const onboardingSnapshot = payment.onboardingSnapshot ?? (payment.registration ? {
+        name: payment.registration.name,
+        email: payment.registration.email,
+        programTitle: payment.registration.trainingProgram?.title,
+        telegramGroupUrl: payment.registration.trainingProgram?.telegramGroupUrl,
+      } : null);
+      if (onboardingSnapshot?.telegramGroupUrl && payment.registrationId) {
+        await emailOutboxService.enqueueTrainingTelegramAccessEmail(
+          payment.registrationId,
+          onboardingSnapshot,
+          tx,
+        );
+      } else {
+        console.error("[Payment] Payment confirmed without onboarding email: Telegram link snapshot is missing.", {
+          paymentId: payment.id,
+          registrationId: payment.registrationId,
+        });
+      }
     } else if (payment.registrationId && status === "REVERSED") {
       const updatedRegistration = await registrationService.markRegistrationPending(payment.registrationId, tx);
       registrationStatus = updatedRegistration.status;

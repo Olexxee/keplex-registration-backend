@@ -56,6 +56,12 @@ const validateDates = ({
   }
 };
 
+const toPublicProgram = (program) => {
+  if (!program) return program;
+  const { telegramGroupUrl: _privateTelegramGroupUrl, ...publicProgram } = program;
+  return publicProgram;
+};
+
 const normalizeContent = (value) => {
   if (value === undefined || value === null) {
     return value;
@@ -171,7 +177,7 @@ export const getTrainingProgramById = async (id) => {
     throw new NotFoundError("Training program not found");
   }
 
-  return program;
+  return toPublicProgram(program);
 };
 
 export const getTrainingProgramBySlug = async (
@@ -184,20 +190,19 @@ export const getTrainingProgramBySlug = async (
     throw new NotFoundError("Training program not found");
   }
 
-  return program;
+  return toPublicProgram(program);
 };
 
 export const getPublicTrainingPrograms = async () => {
-  return trainingDb.listTrainingPrograms({
-    where: {
-      active: true,
-    },
+  const programs = await trainingDb.listTrainingPrograms({
+    where: { active: true },
     orderBy: [
       { featured: "desc" },
       { displayOrder: "asc" },
       { createdAt: "desc" },
     ],
   });
+  return programs.map(toPublicProgram);
 };
 
 export const getAdminTrainingPrograms = async () => {

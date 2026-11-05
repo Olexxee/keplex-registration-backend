@@ -1025,3 +1025,87 @@ Create hero drafts and publish them explicitly. Publishing archives the previous
 Souvenir quantity tiers now define a **per-piece unit price**. The backend calculates `quantity × unitPrice` in integer minor units, stores the unit-rate and total-price snapshots, and Paystack charges only the persisted order total. Admins must configure and activate unit rates for legacy tiers after the migration; old fixed-tier totals are deliberately not guessed or converted.
 
 See [the souvenir pricing and upload rollout guide](docs/souvenir-pricing-and-upload-rollout.md) for the migration procedure, colour-selection rules, tests, and the limits of the Render upload mitigation. Run `npm test` to execute the souvenir pricing unit tests.
+
+---
+
+# Paid Training Onboarding Email
+
+After a training payment is verified successfully, the backend marks the registration as paid and queues a programme-specific Telegram access email. Frontend payment verification and the signed Paystack `charge.success` webhook use the same payment verification service.
+
+## Admin configuration
+
+Each training programme has a `telegramGroupUrl` field managed through the existing protected endpoints:
+
+- `POST /api/training/admin`
+- `PATCH /api/training/admin/:id`
+
+Use an HTTPS Telegram invite/group URL hosted on `t.me` or `telegram.me`. A programme must have this link configured before a new payment can be initialized.
+
+The link is omitted from public training-programme list and detail responses. Admin programme responses retain the field.
+
+## Payment and email flow
+
+```text
+Payment verification OR signed Paystack webhook
+                      |
+                      v
+             Verify with Paystack
+                      |
+                      v
+            Single Prisma transaction
+              |         |         |
+              v         v         v
+           Payment  Registration  EmailOutbox
+           SUCCESS     PAID        PENDING
+                                    |
+                                    v
+                          Embedded server worker
+                                    |
+                                    v
+                                  Resend
+                             SENT / retry / DEAD
+```
+
+Payment, registration and outbox insertion commit atomically. Email delivery is asynchronous; a Resend outage does not reverse a confirmed payment or block the payment API response.
+
+The outbox uses a unique `(registrationId, type)` constraint, PostgreSQL `FOR UPDATE SKIP LOCKED` row claiming, a five-minute processing lease, exponential retry backoff, and a terminal `DEAD` state after the configured maximum attempts. Resend requests use a stable idempotency key derived from the outbox ID. This reduces duplicate sends but cannot promise exactly-once delivery across every provider/network failure.
+
+The worker runs inside the existing `server.js` process. It starts after the database connects and stops before Prisma disconnects. No separate Render worker service is needed. If Resend credentials or a sender are missing, pending jobs remain in PostgreSQL and the worker stays disabled.
+
+## Email configuration
+
+Configure these Render environment variables:
+
+```env
+RESEND_API_KEY=
+TRANSACTIONAL_FROM_EMAIL="KPX Academy <admissions@kpxacademy.com.ng>"
+SUPPORT_REPLY_TO_EMAIL=support@kpxacademy.com.ng
+EMAIL_OUTBOX_POLL_INTERVAL_MS=5000
+EMAIL_OUTBOX_MAX_ATTEMPTS=8
+```
+
+The sender address/domain must be verified in Resend. A WhoGoHost forwarding alias alone does not authorize sending through Resend. The existing `CERTIFICATE_FROM_EMAIL` remains a fallback sender for compatibility.
+
+## Migration and deployment
+
+The migration is located at:
+
+`prisma/migrations/20261105120000_training_telegram_email_outbox/migration.sql`
+
+Deploy it with:
+
+```bash
+npx prisma migrate deploy
+npx prisma generate
+```
+
+Do not use `prisma migrate dev` against production.
+
+## Operational notes
+
+- Monitor Render logs for `[EmailOutbox]` messages.
+- Jobs in `DEAD` require investigation before manual re-queue.
+- The payment stores a snapshot of the student's name, email, programme title and Telegram URL when checkout is initialized. That snapshot is copied into the outbox when payment is confirmed, so later programme edits do not alter in-flight checkout email content.
+- Do not remove a programme's Telegram link while checkouts are in progress.
+- Certificate redesign is intentionally deferred to the final phase.
+

@@ -84,6 +84,7 @@ model TrainingProgram {
   curriculum   Json?
   requirements Json?
   benefits     Json?
+  telegramGroupUrl String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -178,6 +179,7 @@ model Payment {
   authorizationUrl String?
   accessCode       String?
   providerPayload  Json?
+  onboardingSnapshot Json?
 
   paidAt    DateTime?
   createdAt DateTime  @default(now())
@@ -189,6 +191,27 @@ model Payment {
   @@index([registrationId])
   @@index([souvenirOrderId])
   @@index([status, createdAt])
+}
+
+
+model EmailOutbox {
+  id                String            @id @default(cuid())
+  type              EmailOutboxType
+  registrationId    String
+  payload           Json
+  status            EmailOutboxStatus @default(PENDING)
+  attempts          Int               @default(0)
+  availableAt       DateTime          @default(now())
+  lockedAt          DateTime?
+  sentAt            DateTime?
+  providerMessageId String?
+  lastError         String?           @db.Text
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@unique([registrationId, type])
+  @@index([status, availableAt])
+  @@index([status, lockedAt])
 }
 
 // ────────────────────────────────────────────────────────────
@@ -733,6 +756,17 @@ model Resource {
 // ────────────────────────────────────────────────────────────
 // Enums
 // ────────────────────────────────────────────────────────────
+
+enum EmailOutboxType {
+  TRAINING_TELEGRAM_ACCESS
+}
+
+enum EmailOutboxStatus {
+  PENDING
+  PROCESSING
+  SENT
+  DEAD
+}
 
 enum SiteContentStatus {
   DRAFT
