@@ -156,7 +156,7 @@ export const createCertificateSvg = async ({
   </g>
   <text x="15" y="553" font-family="Georgia, 'Times New Roman', serif" font-size="10" font-style="italic" fill="#55524E">Scan to Verify</text>
   <text x="125" y="566" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-style="italic" fill="#55524E">Certificate ID: ${safeCertificateNumber}</text>
-  <text x="520" y="566" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-style="italic" fill="#55524E">kpxacademy.com.ng/verify</text>
+  <text x="520" y="566" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-style="italic" fill="#55524E">kpxacademy.com.ng/certificates</text>
   <text x="743" y="548" text-anchor="middle" font-family="cursive" font-size="13" font-style="italic" fill="#5CA39A">Practical Skills.</text>
   <text x="743" y="565" text-anchor="middle" font-family="cursive" font-size="13" font-style="italic" fill="#5CA39A">More Possibilities.</text>
 </svg>`;
