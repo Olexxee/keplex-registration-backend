@@ -1107,5 +1107,5 @@ Do not use `prisma migrate dev` against production.
 - Jobs in `DEAD` require investigation before manual re-queue.
 - The payment stores a snapshot of the student's name, email, programme title and Telegram URL when checkout is initialized. That snapshot is copied into the outbox when payment is confirmed, so later programme edits do not alter in-flight checkout email content.
 - Do not remove a programme's Telegram link while checkouts are in progress.
-- Certificate redesign is intentionally deferred to the final phase.
+- Certificate visual redesign is being delivered in staged backend work. CERT-01 defines the A4 landscape composition and decorative SVG artwork; see [the certificate design specification](docs/certificate-design-specification.md) and [decorative artwork](assets/certificates/kpx-certificate-artwork.svg). Dynamic certificate content, PDF rendering, QR generation and delivery remain backend responsibilities.
 
