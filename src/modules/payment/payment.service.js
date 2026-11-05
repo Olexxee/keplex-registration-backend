@@ -111,15 +111,15 @@ export const initializePayment = async ({ name, email, trainingProgramId }) => {
     throw new BadRequestError("This training program is not ready for paid registration. Contact the academy.");
   }
 
+  if (program.currency !== "NGN") {
+    throw new BadRequestError("Only NGN payments are currently supported");
+  }
+
   const registration = await registrationService.createRegistration({
     name,
     email,
     trainingProgramId,
   });
-
-  if (program.currency !== "NGN") {
-    throw new BadRequestError("Only NGN payments are currently supported");
-  }
 
   const amountInMinorUnits = toMinorUnits(program.price);
 
@@ -260,12 +260,17 @@ const applyVerifiedTransaction = async (reference, transaction) => {
         programTitle: payment.registration.trainingProgram?.title,
         telegramGroupUrl: payment.registration.trainingProgram?.telegramGroupUrl,
       } : null);
-      if (onboardingSnapshot && payment.registrationId) {
+      if (onboardingSnapshot?.telegramGroupUrl && payment.registrationId) {
         await emailOutboxService.enqueueTrainingTelegramAccessEmail(
           payment.registrationId,
           onboardingSnapshot,
           tx,
         );
+      } else {
+        console.error("[Payment] Payment confirmed without onboarding email: Telegram link snapshot is missing.", {
+          paymentId: payment.id,
+          registrationId: payment.registrationId,
+        });
       }
     } else if (payment.registrationId && status === "REVERSED") {
       const updatedRegistration = await registrationService.markRegistrationPending(payment.registrationId, tx);
