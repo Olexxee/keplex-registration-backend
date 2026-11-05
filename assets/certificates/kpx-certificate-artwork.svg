@@ -20,7 +20,7 @@
     </g>
   </defs>
   <rect width="842" height="595" fill="url(#paper)"/><rect width="842" height="595" fill="url(#paperGrain)"/>
-  <path d="M78 0 H116 V188 L99 218 L78 193 Z" fill="url(#ribbonTail)"/><path d="M89 0 H94 V198 L89 205 Z" fill="#D4A85A"/><path d="M96 0 H101 V192 L96 201 Z" fill="#F2D98E" opacity=".78"/>
+  <path d="M78 0 H116 V595 H78 Z" fill="url(#ribbonTail)"/><path d="M89 0 H94 V595 H89 Z" fill="#D4A85A"/><path d="M96 0 H101 V595 H96 Z" fill="#F2D98E" opacity=".78"/>
   <path d="M78 176 L51 224 L81 216 L91 246 L108 216 L137 224 L116 176 Z" fill="url(#ribbonTail)"/><path d="M91 184 L70 220 L86 215 L93 231 L104 213 L122 219 L109 184 Z" fill="#0E555C" opacity=".7"/><path d="M91 185 L96 190 L96 228 L91 237 Z" fill="#D4A85A"/>
   <path d="M673 0 H842 V595 H648 L720 427 L758 330 L704 245 L738 147 Z" fill="url(#navyPanel)"/>
   <path d="M673 0 H706 L770 234 L842 0 Z" fill="#0B1C28" opacity=".62"/><path d="M726 0 H748 L842 343 V414 L789 292 Z" fill="url(#tealEdge)" opacity=".95"/><path d="M746 0 H757 L842 299 V336 L780 199 Z" fill="#0C202E" opacity=".92"/><path d="M758 0 H777 L842 230 V278 L791 132 Z" fill="#2A7F7F" opacity=".72"/><path d="M842 316 L842 367 L724 595 H685 L788 403 Z" fill="url(#tealHighlight)" opacity=".78"/><path d="M842 378 L842 405 L756 595 H731 Z" fill="#0A1D2B" opacity=".92"/><path d="M842 452 L842 475 L796 595 H775 Z" fill="#2A7F7F" opacity=".55"/><path d="M673 0 L706 0 L768 245 L731 344 L704 245 Z" fill="#FFFFFF" opacity=".035"/>
