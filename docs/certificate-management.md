@@ -111,7 +111,9 @@ The QR code points to `FRONTEND_URL/certificates?number=<certificate-number>#ver
 
 Each issue or resend action sends one message to exactly one recipient (`to` contains only the certificate owner). It never sends to a class list or all students. The certificate sender uses a provider idempotency key shared by its internal network retries so a timeout does not accidentally duplicate the same action. A later admin-initiated resend is a new, explicit email action. The shared outbox worker processes one queued recipient per poll cycle to prevent burst delivery.
 
-Resending uses the already stored authenticated PDF from Cloudinary. It does not re-render the certificate, so changing the academy logo or artwork later cannot silently alter a previously issued certificate when its email is resent.
+Resending uses the authenticated PDF already stored for that certificate. The backend first tries the exact secure URL returned by Cloudinary at upload time, then falls back to a newly signed raw-asset URL built from the stored public ID. Raw Cloudinary public IDs already contain their file extension, so the URL builder must not append a separate format extension. Resending does not re-render the certificate; artwork changes apply to newly issued certificates, not silently to previously issued records.
+
+Every resend failure is now persisted as the latest `lastEmailError`, including failures while retrieving or validating the stored PDF (not only failures returned by the email provider). A successful provider acceptance records `emailSentAt` and clears the previous error. This timestamp records provider acceptance, not guaranteed inbox delivery.
 
 ### Renderer operations
 
