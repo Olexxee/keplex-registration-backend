@@ -15,6 +15,11 @@ export const createGuestBooking = asyncWrapper(async (req, res) => {
   });
 });
 
+export const getGuestBooking = asyncWrapper(async (req, res) => {
+  const data = await workshopService.getGuestBooking(req.validated.params);
+  return res.json({ success: true, data });
+});
+
 export const listAdminOfferings = asyncWrapper(async (_req, res) => {
   const data = await workshopService.listAdminOfferings();
   return res.json({ success: true, data });
