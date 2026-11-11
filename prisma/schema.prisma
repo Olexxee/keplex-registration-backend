@@ -26,6 +26,7 @@ model AdminUser {
   updatedAt DateTime @updatedAt
 
   sessions AdminSession[]
+  workshopBookingHistory WorkshopBookingHistory[]
 
   @@index([role])
   @@index([active])
@@ -197,7 +198,9 @@ model Payment {
 model EmailOutbox {
   id                String            @id @default(cuid())
   type              EmailOutboxType
-  registrationId    String
+  dedupeKey         String            @unique
+  registrationId    String?
+  workshopBookingId String?
   payload           Json
   status            EmailOutboxStatus @default(PENDING)
   attempts          Int               @default(0)
@@ -209,9 +212,11 @@ model EmailOutbox {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
-  @@unique([registrationId, type])
+  workshopBooking WorkshopBooking? @relation(fields: [workshopBookingId], references: [id], onDelete: Cascade)
+
   @@index([status, availableAt])
   @@index([status, lockedAt])
+  @@index([workshopBookingId])
 }
 
 // ────────────────────────────────────────────────────────────
@@ -589,11 +594,32 @@ model WorkshopBooking {
 
   offering        WorkshopOffering         @relation(fields: [offeringId], references: [id], onDelete: Restrict)
   participantTier WorkshopParticipantTier? @relation(fields: [participantTierId], references: [id], onDelete: SetNull)
+  history         WorkshopBookingHistory[]
+  emailOutbox     EmailOutbox[]
 
   @@index([status, createdAt])
   @@index([eventDate])
   @@index([customerEmail])
   @@index([customerWhatsApp])
+}
+
+model WorkshopBookingHistory {
+  id                String                       @id @default(cuid())
+  bookingId         String
+  action            WorkshopBookingHistoryAction
+  previousStatus    WorkshopBookingStatus?
+  newStatus         WorkshopBookingStatus?
+  previousEventDate DateTime?
+  newEventDate      DateTime?
+  customerMessage   String?                      @db.Text
+  actorAdminId      String?
+  createdAt         DateTime                     @default(now())
+
+  booking   WorkshopBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  adminUser AdminUser?      @relation(fields: [actorAdminId], references: [id], onDelete: SetNull)
+
+  @@index([bookingId, createdAt])
+  @@index([actorAdminId, createdAt])
 }
 
 model CertificateSubmission {
@@ -760,6 +786,7 @@ model Resource {
 
 enum EmailOutboxType {
   TRAINING_TELEGRAM_ACCESS
+  WORKSHOP_BOOKING_NOTIFICATION
 }
 
 enum EmailOutboxStatus {
@@ -855,6 +882,13 @@ enum WorkshopVenueMode {
   CLIENT_VENUE
   KPX_VENUE
   UNDECIDED
+}
+
+enum WorkshopBookingHistoryAction {
+  CREATED
+  STATUS_CHANGED
+  RESCHEDULED
+  UPDATED
 }
 
 enum WorkshopBookingStatus {
