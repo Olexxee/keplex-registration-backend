@@ -29,8 +29,9 @@ test("builds a signed raw URL without appending a duplicate PDF extension", () =
     documentPublicId: "kpx/certificates/certificate-1.pdf",
   });
   assert.match(url, /^https:\/\/res\.cloudinary\.com\/certificate-test\/raw\/authenticated\//);
-  assert.match(url, /\/kpx\/certificates\/certificate-1\.pdf$/);
-  assert.doesNotMatch(url, /\.pdf\.pdf$/);
+  const parsed = new URL(url);
+  assert.match(parsed.pathname, /\/kpx\/certificates\/certificate-1\.pdf$/);
+  assert.doesNotMatch(parsed.pathname, /\.pdf\.pdf$/);
 });
 
 test("rejects an untrusted stored URL and uses the signed Cloudinary URL", () => {
