@@ -37,6 +37,17 @@ const processOne = async () => prisma.$transaction(async (tx) => {
         error.permanent = true;
         throw error;
       }
+      // Serialize delivery against revocation. If revocation commits first,
+      // this lock makes the worker observe REVOKED and decline the send.
+      const certificateLock = await tx.$queryRaw`
+        SELECT "id" FROM "Certificate" WHERE "id" = ${job.certificateId} FOR UPDATE
+      `;
+      if (!certificateLock.length) {
+        const error = new Error("Certificate delivery job references a missing certificate.");
+        error.permanent = true;
+        throw error;
+      }
+
       certificate = await certificateDb.findCertificateById(job.certificateId, tx);
       if (!certificate) {
         const error = new Error("Certificate delivery job references a missing certificate.");
