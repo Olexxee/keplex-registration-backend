@@ -128,6 +128,8 @@ Add explicit endpoints to avoid client-selected generic target types:
 - POST /api/payments/souvenirs/initialize
 - POST /api/payments/appointments/initialize
 
+Workshop payment is implemented as a private guest flow: `POST /api/payments/workshops/initialize` accepts only a booking reference and private access token. The server uses the accepted proposal's stored price/currency; the browser cannot supply or override the amount. A verified full payment confirms an accepted booking. Deposits/installments are not supported. Appointment payments remain design-only.
+
 Each payment service loads the target and computes amount from stored prices or the current accepted quote. Extend Payment with nullable foreign keys to each target and a database CHECK constraint requiring exactly one payment target. Do not use an unconstrained polymorphic entityType/entityId pair. Public responses must never include providerPayload. Paystack verification remains server-side and idempotent.
 
 Payment success transitions:
