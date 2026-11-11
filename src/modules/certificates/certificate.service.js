@@ -7,6 +7,7 @@ import {
 import { cloudinary } from "../../config/cloudinary.js";
 import * as db from "./certificate.db.js";
 import {
+  CERTIFICATE_TEMPLATE_VERSION,
   createCertificatePdf,
   getCertificateDocumentAccessUrl,
   getProofAccessUrl,
@@ -175,6 +176,7 @@ const createAndEmailCertificate = async ({
       status: "ISSUED",
       documentUrl: uploadedDocument.url,
       documentPublicId: uploadedDocument.publicId,
+      documentTemplateVersion: CERTIFICATE_TEMPLATE_VERSION,
     });
   } catch (error) {
     await cloudinary.uploader.destroy(uploadedDocument.publicId, {
