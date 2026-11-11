@@ -38,6 +38,30 @@ export const updateRegistration = (id, data, tx = prisma) =>
 
 export const createPayment = (data, tx = prisma) => tx.payment.create({ data });
 
+export const findPendingWorkshopPayment = (workshopBookingId, tx = prisma) => tx.payment.findFirst({
+  where: { workshopBookingId, status: "PENDING" },
+  orderBy: { createdAt: "desc" },
+});
+
+export const findLatestWorkshopPayment = (workshopBookingId, tx = prisma) => tx.payment.findFirst({
+  where: { workshopBookingId },
+  orderBy: { createdAt: "desc" },
+});
+
+export const findGuestWorkshopBookingForPayment = (publicReference, accessTokenHash, tx = prisma) =>
+  tx.workshopBooking.findFirst({
+    where: { publicReference, accessTokenHash },
+    select: {
+      id: true,
+      publicReference: true,
+      customerName: true,
+      customerEmail: true,
+      status: true,
+      proposalPrice: true,
+      currency: true,
+    },
+  });
+
 export const findPendingSouvenirPayment = (souvenirOrderId, tx = prisma) => tx.payment.findFirst({
   where: { souvenirOrderId, status: "PENDING" },
   orderBy: { createdAt: "desc" },
@@ -59,6 +83,7 @@ export const findPaymentByReference = (reference, tx = prisma) =>
         },
       },
       souvenirOrder: true,
+      workshopBooking: true,
     },
   });
 

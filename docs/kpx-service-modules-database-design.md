@@ -87,9 +87,11 @@ Append-only status transitions, actor, reason, timestamp.
 
 ## Shared payment extension
 
-The current Payment.registrationId is required and each payment is tied to a training registration. Extend the existing Payment model with nullable foreign keys for workshopBookingId, souvenirOrderId, and appointmentId; make registrationId nullable, and add the matching Prisma relations. Add a PostgreSQL CHECK constraint requiring exactly one of these four target foreign keys to be non-null. This preserves real foreign keys and avoids a polymorphic entityType/entityId pair with no referential integrity.
+The existing Payment model supports training registrations and souvenir orders. Workshop proposal checkout adds a nullable `workshopBookingId` foreign key and matching Prisma relation. A PostgreSQL CHECK constraint requires exactly one of `registrationId`, `souvenirOrderId`, or `workshopBookingId` to be non-null. Do not use an unconstrained polymorphic entityType/entityId pair.
 
-The payment service must resolve the target server-side, calculate amount from stored prices/accepted quote, validate currency/amount against Paystack verification, and update payment + target status in one database transaction. Existing registration payment behavior remains unchanged. Payment records and webhook processing must remain idempotent.
+Workshop checkout is private-token protected. The payment service resolves the booking by public reference plus SHA-256 access-token hash, requires status ACCEPTED, and calculates the full amount from the stored accepted `proposalPrice` and booking currency. The client cannot supply an amount. Only NGN is currently supported. A partial unique index permits one PENDING workshop payment attempt per booking.
+
+Paystack verification and signed webhooks share the same transactional settlement path. A verified success updates the Payment, conditionally transitions ACCEPTED → CONFIRMED, appends booking history, and queues a confirmation email in one database transaction. A reversal returns CONFIRMED → ACCEPTED where safe; otherwise the verification response flags manual review. Existing training and souvenir payment behavior remains unchanged. Appointment payment association remains future work.
 
 ## Guest-facing privacy and abuse controls
 

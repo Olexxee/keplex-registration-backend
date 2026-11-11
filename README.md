@@ -1212,3 +1212,17 @@ An accepted proposal moves to `ACCEPTED`; payment collection and final confirmat
 ### Migration
 
 Apply `prisma/migrations/20261111160000_add_workshop_proposal_decisions` after the migration for booking history and notifications, then run `npx prisma generate`.
+
+
+## Workshop proposal payment
+
+An accepted workshop proposal can be paid through the existing Paystack integration. The guest must use the private booking reference and access token to initialize checkout; the server loads the accepted proposal price and currency and never accepts a client-supplied amount. Only NGN is currently enabled.
+
+- Initialize: `POST /api/payments/workshops/initialize` with `{ reference, token }`.
+- Verify: `GET /api/payments/verify/:reference` (server verifies directly with Paystack).
+- Webhook: signed Paystack `charge.success` events use the same verification and transactional settlement path.
+- A verified success transitions an `ACCEPTED` booking to `CONFIRMED` and appends booking history in the same transaction as the payment update.
+- Failed, abandoned, or unverified transactions do not confirm a booking. Reversed payments return a confirmed booking to `ACCEPTED` where safe; reversals after another operational transition are flagged for manual review in the verification response.
+- A partial unique index allows only one pending workshop payment attempt per booking. Payment targets are protected by a database check constraint requiring exactly one of registration, souvenir order, or workshop booking.
+
+The payment amount is the full final proposal price. Deposits and installment schedules are not enabled in this phase.
