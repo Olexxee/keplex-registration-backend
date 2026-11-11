@@ -1141,3 +1141,20 @@ The schema migration is:
 `prisma/migrations/20261111000000_add_organization_profile/migration.sql`
 
 Apply it during deployment with `npm run prisma:migrate` (or `npx prisma migrate deploy`) and regenerate Prisma Client with `npm run prisma:generate`. The API returns safe defaults when the singleton has not yet been saved, so deploying the migration does not require a manual seed step. Admins can populate the details under **Admin → Organization info**.
+
+
+# Frequently Asked Questions (FAQ)
+
+FAQs are managed from the authenticated admin workspace and are served publicly only when their status is `PUBLISHED`.
+
+| Method | Endpoint | Access | Purpose |
+| --- | --- | --- | --- |
+| GET | `/api/site-content/faq` | Public | List published FAQs ordered by display order |
+| GET | `/api/site-content/admin/faq` | Admin / Super Admin | List all FAQs, including drafts and archived entries |
+| POST | `/api/site-content/admin/faq` | Admin / Super Admin | Create an FAQ draft |
+| PATCH | `/api/site-content/admin/faq/:id` | Admin / Super Admin | Edit an FAQ or change its publication status |
+| DELETE | `/api/site-content/admin/faq/:id` | Admin / Super Admin | Delete an FAQ |
+
+Each FAQ has a question, answer, status (`DRAFT`, `PUBLISHED`, or `ARCHIVED`), and display order. New entries default to `DRAFT`. Publishing sets `publishedAt`; moving an entry out of `PUBLISHED` clears it. The public endpoint never returns drafts or archived entries.
+
+Production deployments must apply the committed Prisma migration with `npx prisma migrate deploy`.
