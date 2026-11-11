@@ -879,7 +879,7 @@ enum CertificateStatus {
 }
 
 
-model FAQItem {
+model FaqItem {
   id           String            @id @default(cuid())
   question     String            @db.VarChar(300)
   answer       String            @db.Text
