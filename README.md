@@ -1175,3 +1175,27 @@ Admin booking updates enforce the following state machine:
 Status transitions use a conditional database update against the previously read status. If another admin changes the booking concurrently, the second update receives a conflict response and must refresh. Admin-note-only updates remain available in every state. Empty and unknown-field update payloads are rejected.
 
 Run `npm test` to execute the workshop lifecycle tests.
+
+
+## Workshop booking history and customer notifications
+
+Every workshop booking receives an immutable creation-history entry. Admin status changes and date changes write an audit entry in the same database transaction as the booking update. Each entry records the previous and new status/date, the authenticated admin ID where applicable, an optional customer-facing message, and the timestamp. Guest status access returns a safe history projection; it never exposes admin notes or internal admin identifiers.
+
+The admin update endpoint accepts:
+- `status` — subject to the existing booking state machine.
+- `eventDate` — a future date/time for rescheduling.
+- `customerMessage` — optional text shared with the customer and included in the relevant email.
+- `adminNotes` — private internal notes; never exposed on the guest page.
+
+Customer emails are queued for proposal sent, confirmed, cancelled, and rescheduled events. The outbox insertion and audit write share the booking transaction. The existing embedded Render worker sends these emails through Resend with a stable provider idempotency key and retries failed deliveries. Email failure does not roll back the booking update. The email refers customers to the private status link originally issued at booking creation; it does not reproduce or store the raw access token.
+
+### Migration
+
+Apply `prisma/migrations/20261111150000_workshop_booking_history_notifications` with:
+
+```bash
+npx prisma migrate deploy
+npx prisma generate
+```
+
+The migration generalizes the existing email outbox by adding a deduplication key and an optional workshop booking association while preserving existing training-email rows. Existing outbox records receive deterministic deduplication keys. Do not apply this migration manually with ad hoc SQL.
