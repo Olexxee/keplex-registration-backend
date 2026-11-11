@@ -7,11 +7,19 @@ process.env.CLOUDINARY_API_SECRET ||= "certificate-test-secret";
 process.env.DATABASE_URL ||= "postgresql://test:test@localhost:5432/certificate_test";
 
 const {
+  CERTIFICATE_TEMPLATE_VERSION,
   downloadCertificateDocument,
   getCertificateDocumentAccessUrl,
+  isCertificateDocumentCurrent,
 } = await import("./certificate.document.js");
 
 const pdf = Buffer.from("%PDF-1.7\nmock certificate\n%%EOF");
+
+test("identifies legacy certificate PDFs for regeneration before delivery", () => {
+  assert.equal(CERTIFICATE_TEMPLATE_VERSION, "2026-11-reference-v1");
+  assert.equal(isCertificateDocumentCurrent({ documentTemplateVersion: "legacy" }), false);
+  assert.equal(isCertificateDocumentCurrent({ documentTemplateVersion: CERTIFICATE_TEMPLATE_VERSION }), true);
+});
 
 test("uses the exact authenticated Cloudinary URL saved at upload time", () => {
   const storedUrl = "https://res.cloudinary.com/demo/raw/authenticated/s--signature--/v123/kpx/certificates/certificate-1.pdf";
