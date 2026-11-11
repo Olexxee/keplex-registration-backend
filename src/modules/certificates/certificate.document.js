@@ -296,7 +296,13 @@ const getTrustedStoredCertificateUrl = (documentUrl) => {
 const getStoredCertificateVersion = (documentUrl) => {
   const trustedUrl = getTrustedStoredCertificateUrl(documentUrl);
   if (!trustedUrl) return null;
-  const versionSegment = new URL(trustedUrl).pathname.split("/").find((segment) => /^v\\d+$/.test(segment));
+  const versionSegment = new URL(trustedUrl).pathname
+    .split("/")
+    .find((segment) => {
+      if (!segment.startsWith("v") || segment.length < 2) return false;
+      const versionNumber = Number(segment.slice(1));
+      return Number.isSafeInteger(versionNumber) && versionNumber > 0;
+    });
   return versionSegment ? versionSegment.slice(1) : null;
 };
 
