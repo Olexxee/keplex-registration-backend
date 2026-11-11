@@ -201,6 +201,9 @@ export const updateAdminBooking = async (id, data, actorAdminId) => {
   const booking = await workshopDb.findBookingById(id);
   if (!booking) throw new NotFoundError("Workshop booking not found");
 
+  if (["ACCEPTED", "DECLINED"].includes(data.status)) {
+    throw new BadRequestError("Customers must accept or decline proposals through their private booking page");
+  }
   if (data.status && data.status !== booking.status
     && !isWorkshopBookingTransitionAllowed(booking.status, data.status)) {
     throw new ConflictError(`Workshop booking cannot move from ${booking.status} to ${data.status}`);
