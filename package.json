@@ -11,7 +11,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "test": "node --test src/modules/payment/*.test.js src/modules/souvenirs/*.test.js src/modules/training/*.test.js src/modules/notifications/*.test.js src/modules/siteContent/*.test.js src/modules/workshops/*.test.js"
+    "test": "node --test src/modules/payment/*.test.js src/modules/souvenirs/*.test.js src/modules/training/*.test.js src/modules/notifications/*.test.js src/modules/siteContent/*.test.js src/modules/workshops/*.test.js src/modules/certificates/*.test.js"
   },
   "keywords": [],
   "author": "",

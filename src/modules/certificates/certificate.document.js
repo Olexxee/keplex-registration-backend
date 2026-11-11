@@ -276,25 +276,71 @@ export const createCertificatePdf = async (certificate) => {
   return wrapJpegInPdf(jpeg);
 };
 
-export const downloadCertificateDocument = async (documentPublicId) => {
-  if (!documentPublicId) throw new Error("Certificate document is not available for resend.");
-  const url = cloudinary.url(documentPublicId, {
+const getTrustedStoredCertificateUrl = (documentUrl) => {
+  if (!documentUrl) return null;
+  try {
+    const parsed = new URL(documentUrl);
+    if (
+      parsed.protocol !== "https:" ||
+      parsed.hostname !== "res.cloudinary.com" ||
+      !parsed.pathname.includes("/raw/authenticated/")
+    ) {
+      return null;
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+};
+
+const getSignedCertificateUrl = (documentPublicId) => {
+  if (!documentPublicId) return null;
+  // Cloudinary raw public IDs include the file extension. Do not pass format:
+  // doing so can produce a second extension and a URL that returns 404.
+  return cloudinary.url(documentPublicId, {
     resource_type: "raw",
     type: "authenticated",
     sign_url: true,
     secure: true,
-    format: "pdf",
   });
-  const response = await fetch(url, {
-    redirect: "error",
-    signal: AbortSignal.timeout(20000),
-  });
-  if (!response.ok) throw new Error(`Could not retrieve the stored certificate PDF (${response.status}).`);
-  const buffer = Buffer.from(await response.arrayBuffer());
-  if (buffer.subarray(0, 5).toString("ascii") !== "%PDF-") {
-    throw new Error("The stored certificate document is not a valid PDF.");
+};
+
+export const getCertificateDocumentAccessUrl = (certificate) =>
+  getTrustedStoredCertificateUrl(certificate.documentUrl) ||
+  getSignedCertificateUrl(certificate.documentPublicId);
+
+export const downloadCertificateDocument = async (certificate) => {
+  const urls = [
+    getTrustedStoredCertificateUrl(certificate?.documentUrl),
+    getSignedCertificateUrl(certificate?.documentPublicId),
+  ].filter((url, index, all) => url && all.indexOf(url) === index);
+
+  if (!urls.length) throw new Error("Certificate document is not available for resend.");
+
+  let lastError = null;
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, {
+        redirect: "error",
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!response.ok) {
+        lastError = new Error(`Could not retrieve the stored certificate PDF (${response.status}).`);
+        continue;
+      }
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.subarray(0, 5).toString("ascii") !== "%PDF-") {
+        lastError = new Error("The stored certificate document is not a valid PDF.");
+        continue;
+      }
+      return buffer;
+    } catch (error) {
+      lastError = error;
+    }
   }
-  return buffer;
+
+  throw lastError || new Error("Could not retrieve the stored certificate PDF.");
 };
 
 export const uploadCertificateDocument = async (buffer, certificateNumber) => {
