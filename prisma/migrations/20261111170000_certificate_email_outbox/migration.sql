@@ -12,3 +12,8 @@ ALTER TABLE "EmailOutbox"
 
 CREATE INDEX "EmailOutbox_certificateId_idx"
   ON "EmailOutbox"("certificateId");
+
+-- Existing PDFs predate the approved reference artwork. They are regenerated
+-- with the current template on the next deliberate certificate delivery.
+ALTER TABLE "Certificate"
+  ADD COLUMN "documentTemplateVersion" TEXT NOT NULL DEFAULT 'legacy';
