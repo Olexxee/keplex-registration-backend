@@ -1226,3 +1226,14 @@ An accepted workshop proposal can be paid through the existing Paystack integrat
 - A partial unique index allows only one pending workshop payment attempt per booking. Payment targets are protected by a database check constraint requiring exactly one of registration, souvenir order, or workshop booking.
 
 The payment amount is the full final proposal price. Deposits and installment schedules are not enabled in this phase.
+
+
+# Creative workshops and repeat event bookings
+
+Workshop offerings define reusable service options and their participant price tiers. A customer booking is a separate event request with its own event date, venue details, customer proposal, status history, and payment lifecycle.
+
+Participant tier uniqueness is scoped to a single offering and participant count. This prevents two competing shared prices for the same group size under one offering; it does **not** limit how many bookings may reuse that tier. The same customer can submit multiple event requests for the same offering, participant count, and tier, including separate dates. Each request receives its own public reference and private access token.
+
+For an event-specific negotiated price, admins should set the final amount in that booking's proposal. They should not create a duplicate shared tier or alter a shared tier merely to quote one event.
+
+The public booking page and private booking page operate on one booking reference at a time. Proposal acceptance or decline is scoped to that booking's credentials and cannot accept or reject another event for the same customer.
