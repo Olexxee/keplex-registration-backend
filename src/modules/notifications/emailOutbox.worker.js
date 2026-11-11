@@ -39,9 +39,9 @@ const poll = async () => {
   if (isPolling || stopped) return;
   isPolling = true;
   try {
-    for (let index = 0; index < 5 && !stopped; index += 1) {
-      if (!(await processOne())) break;
-    }
+    // Deliberately process one recipient per poll. A single notification event
+    // must never fan out to every student, and paced sends avoid provider bursts.
+    await processOne();
   } catch (error) {
     console.error("[EmailOutbox] Worker poll failed:", error);
   } finally {

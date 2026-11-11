@@ -89,7 +89,7 @@ Configure these on the backend host and in local `.env`:
 - `RESEND_API_KEY`
 - `CERTIFICATE_FROM_EMAIL` — a sender identity verified in Resend
 
-If email configuration is missing or delivery fails, issuance still succeeds and records the delivery error. Configure email before production issuance.
+If email configuration is missing or delivery fails, issuance still succeeds and records the delivery error. Configure email before production issuance. Each certificate issue/resend action targets exactly one student email address; there is no bulk-recipient mode. Network retries reuse one provider idempotency key, while a later deliberate resend is a distinct send action.
 
 
 ## Certificate document rendering
@@ -107,7 +107,9 @@ The output is a high-resolution, single-page raster PDF: the artwork and text ar
 
 The QR code points to `FRONTEND_URL/certificates?number=<certificate-number>#verify-certificate`. The KPX Academy frontend certificate page consumes the `number` query parameter, prefills the field, and automatically calls the public verification endpoint. The API verification endpoint remains `GET /verify/:certificateNumber`.
 
-### Resending
+### Email delivery and resending
+
+Each issue or resend action sends one message to exactly one recipient (`to` contains only the certificate owner). It never sends to a class list or all students. The certificate sender uses a provider idempotency key shared by its internal network retries so a timeout does not accidentally duplicate the same action. A later admin-initiated resend is a new, explicit email action. The shared outbox worker processes one queued recipient per poll cycle to prevent burst delivery.
 
 Resending uses the already stored authenticated PDF from Cloudinary. It does not re-render the certificate, so changing the academy logo or artwork later cannot silently alter a previously issued certificate when its email is resent.
 
