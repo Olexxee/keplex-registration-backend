@@ -8,6 +8,7 @@ const allowed = [
   ["UNDER_REVIEW", "PROPOSAL_SENT"],
   ["UNDER_REVIEW", "ACCEPTED"],
   ["PROPOSAL_SENT", "ACCEPTED"],
+  ["PROPOSAL_SENT", "DECLINED"],
   ["ACCEPTED", "CONFIRMED"],
   ["CONFIRMED", "IN_PROGRESS"],
   ["IN_PROGRESS", "COMPLETED"],
@@ -26,6 +27,7 @@ const rejected = [
   ["ACCEPTED", "COMPLETED"],
   ["IN_PROGRESS", "CONFIRMED"],
   ["COMPLETED", "CANCELLED"],
+  ["DECLINED", "ACCEPTED"],
   ["CANCELLED", "CONFIRMED"],
 ];
 
@@ -41,5 +43,6 @@ test("same-status updates are idempotent", () => {
 
 test("completed and cancelled bookings are terminal", () => {
   assert.deepEqual(WORKSHOP_BOOKING_TRANSITIONS.COMPLETED, []);
+  assert.deepEqual(WORKSHOP_BOOKING_TRANSITIONS.DECLINED, []);
   assert.deepEqual(WORKSHOP_BOOKING_TRANSITIONS.CANCELLED, []);
 });
