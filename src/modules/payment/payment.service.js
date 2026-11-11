@@ -310,7 +310,8 @@ const applyVerifiedTransaction = async (reference, transaction) => {
         registrationStatus: payment.registration?.status ?? null,
         souvenirOrderStatus: payment.souvenirOrder?.status ?? null,
         workshopBookingStatus: payment.workshopBooking?.status ?? null,
-        workshopPaymentNeedsReview: false,
+        workshopPaymentNeedsReview: Boolean(payment.workshopBookingId)
+          && !["CONFIRMED", "IN_PROGRESS", "COMPLETED"].includes(payment.workshopBooking?.status),
         alreadyProcessed: true,
       };
     }
