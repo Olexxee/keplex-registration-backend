@@ -1199,3 +1199,16 @@ npx prisma generate
 ```
 
 The migration generalizes the existing email outbox by adding a deduplication key and an optional workshop booking association while preserving existing training-email rows. Existing outbox records receive deterministic deduplication keys. Do not apply this migration manually with ad hoc SQL.
+
+
+## Workshop proposal and customer decision workflow
+
+Admins can move a booking from `UNDER_REVIEW` to `PROPOSAL_SENT` only when a final proposal price, scope/details, and future expiry timestamp are supplied. The proposal terms are stored separately from the original indicative participant-tier price. The customer receives the proposal terms by email and can review them on the private booking page.
+
+The private guest endpoint accepts `ACCEPT` or `DECLINE` decisions only while the booking is in `PROPOSAL_SENT` and the proposal has not expired. The decision is conditionally persisted with a matching history entry in one database transaction. Repeated, expired, or concurrent responses are rejected. Admin endpoints cannot mark a proposal accepted or declined, and the lifecycle cannot bypass proposal issuance.
+
+An accepted proposal moves to `ACCEPTED`; payment collection and final confirmation are separate follow-on workflows. A declined proposal is terminal. Proposal decisions do not trigger payment or mark a booking as paid.
+
+### Migration
+
+Apply `prisma/migrations/20261111160000_add_workshop_proposal_decisions` after the migration for booking history and notifications, then run `npx prisma generate`.
