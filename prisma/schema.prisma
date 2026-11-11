@@ -879,6 +879,25 @@ enum CertificateStatus {
 }
 
 
+model OrganizationProfile {
+  id             String   @id @default("organization-profile")
+  organizationName String  @default("KPX Academy")
+  tagline        String?  @db.VarChar(200)
+  description    String?  @db.Text
+  contactEmail   String?  @db.VarChar(254)
+  phone          String?  @db.VarChar(40)
+  whatsapp       String?  @db.VarChar(40)
+  address        String?  @db.Text
+  operatingHours String?  @db.Text
+  instagramUrl   String?  @db.VarChar(500)
+  facebookUrl    String?  @db.VarChar(500)
+  linkedinUrl    String?  @db.VarChar(500)
+  tiktokUrl      String?  @db.VarChar(500)
+  youtubeUrl     String?  @db.VarChar(500)
+  copyrightText  String?  @db.VarChar(300)
+  updatedAt      DateTime @updatedAt
+}
+
 model SiteBranding {
   id          String   @id @default("site-branding")
   logoUrl     String?
