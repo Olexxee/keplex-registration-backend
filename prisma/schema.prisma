@@ -167,6 +167,7 @@ model Payment {
 
   registrationId  String?
   souvenirOrderId String?
+  workshopBookingId String?
 
   provider          PaymentProvider @default(PAYSTACK)
   reference         String          @unique
@@ -188,9 +189,11 @@ model Payment {
 
   registration  Registration?  @relation(fields: [registrationId], references: [id], onDelete: Cascade)
   souvenirOrder SouvenirOrder? @relation(fields: [souvenirOrderId], references: [id], onDelete: Cascade)
+  workshopBooking WorkshopBooking? @relation(fields: [workshopBookingId], references: [id], onDelete: Restrict)
 
   @@index([registrationId])
   @@index([souvenirOrderId])
+  @@index([workshopBookingId])
   @@index([status, createdAt])
 }
 
@@ -601,6 +604,7 @@ model WorkshopBooking {
   participantTier WorkshopParticipantTier? @relation(fields: [participantTierId], references: [id], onDelete: SetNull)
   history         WorkshopBookingHistory[]
   emailOutbox     EmailOutbox[]
+  payments        Payment[]
 
   @@index([status, createdAt])
   @@index([eventDate])
