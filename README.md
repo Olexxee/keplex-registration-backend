@@ -1068,7 +1068,7 @@ Payment verification OR signed Paystack webhook
 
 Payment, registration and outbox insertion commit atomically. Email delivery is asynchronous; a Resend outage does not reverse a confirmed payment or block the payment API response.
 
-The outbox uses a unique `(registrationId, type)` constraint, PostgreSQL `FOR UPDATE SKIP LOCKED` row claiming, a five-minute processing lease, exponential retry backoff, and a terminal `DEAD` state after the configured maximum attempts. Resend requests use a stable idempotency key derived from the outbox ID. This reduces duplicate sends but cannot promise exactly-once delivery across every provider/network failure.
+The outbox uses a unique `dedupeKey`, PostgreSQL `FOR UPDATE SKIP LOCKED` row claiming, a five-minute processing lease, exponential retry backoff, and a terminal `DEAD` state after the configured maximum attempts. Resend requests use a stable idempotency key derived from the outbox ID. This reduces duplicate sends but cannot promise exactly-once delivery across every provider/network failure.
 
 The worker runs inside the existing `server.js` process. It starts after the database connects and stops before Prisma disconnects. No separate Render worker service is needed. If Resend credentials or a sender are missing, pending jobs remain in PostgreSQL and the worker stays disabled.
 
