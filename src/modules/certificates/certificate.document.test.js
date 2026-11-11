@@ -43,22 +43,21 @@ test("rejects an untrusted stored URL and uses the signed Cloudinary URL", () =>
   assert.doesNotMatch(url, /example\.invalid/);
 });
 
-test("falls back to the signed raw URL when the original stored URL returns 404", async (t) => {
+test("fallback URL preserves the exact Cloudinary version from the stored PDF URL", async (t) => {
   const originalFetch = globalThis.fetch;
-  const storedUrl = "https://res.cloudinary.com/demo/raw/authenticated/s--signature--/v123/kpx/certificates/certificate-1.pdf";
-  const fallbackUrl = getCertificateDocumentAccessUrl({
-    documentPublicId: "kpx/certificates/certificate-1.pdf",
-  });
+  const storedUrl = "https://res.cloudinary.com/demo/raw/authenticated/s--signature--/v1794323075/kpx/certificates/certificate-1.pdf";
   const requested = [];
 
   globalThis.fetch = async (url) => {
     requested.push(String(url));
     if (String(url) === storedUrl) return new Response("Not found", { status: 404 });
-    if (String(url) === fallbackUrl) return new Response(pdf, {
+    const fallback = new URL(String(url));
+    assert.match(fallback.pathname, /\\/v1794323075\\/kpx\\/certificates\\/certificate-1\\.pdf$/);
+    assert.match(fallback.pathname, /\\/raw\\/authenticated\\/s--[^/]+--\\//);
+    return new Response(pdf, {
       status: 200,
       headers: { "content-type": "application/pdf" },
     });
-    return new Response("Unexpected URL", { status: 500 });
   };
   t.after(() => {
     globalThis.fetch = originalFetch;
@@ -70,5 +69,7 @@ test("falls back to the signed raw URL when the original stored URL returns 404"
   });
 
   assert.deepEqual(result, pdf);
-  assert.deepEqual(requested, [storedUrl, fallbackUrl]);
+  assert.equal(requested.length, 2);
+  assert.equal(requested[0], storedUrl);
+  assert.match(requested[1], /\\/v1794323075\\/kpx\\/certificates\\/certificate-1\\.pdf$/);
 });
