@@ -1237,3 +1237,12 @@ Participant tier uniqueness is scoped to a single offering and participant count
 For an event-specific negotiated price, admins should set the final amount in that booking's proposal. They should not create a duplicate shared tier or alter a shared tier merely to quote one event.
 
 The public booking page and private booking page operate on one booking reference at a time. Proposal acceptance or decline is scoped to that booking's credentials and cannot accept or reject another event for the same customer.
+
+
+## Certificate email delivery and serialized outbox
+
+Certificate creation and its initial one-recipient email job are persisted atomically. Admin resends enqueue a separate action with an `Idempotency-Key`; the queue stores a certificate reference, not the PDF bytes. The worker retrieves the exact stored certificate PDF and sends only to the email on that certificate record.
+
+The shared embedded worker processes one email job per poll. It holds a PostgreSQL transaction-level advisory lock through provider delivery, serializing sends across application processes. Resend requests use a stable idempotency key derived from the outbox job ID. Admin certificate records expose the latest delivery state (`PENDING`, `PROCESSING`, `SENT`, or `DEAD`). The `emailSentAt` field means the provider accepted the message; it does not guarantee inbox delivery.
+
+Apply `prisma/migrations/20261111170000_certificate_email_outbox` with `npx prisma migrate deploy`, then regenerate Prisma Client. Set `EMAIL_OUTBOX_WORKER_ENABLED=true` only on the Render delivery service; keep it false locally. See [certificate management](docs/certificate-management.md) for API semantics and operations.
