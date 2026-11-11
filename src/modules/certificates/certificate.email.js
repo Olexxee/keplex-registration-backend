@@ -59,7 +59,7 @@ const buildText = (certificate) =>
     "KPX Academy",
   ].join("\n");
 
-export const sendCertificateEmail = async ({ certificate, pdfBuffer }) => {
+export const sendCertificateEmail = async ({ certificate, pdfBuffer, idempotencyKey: requestedIdempotencyKey }) => {
   const { apiKey, from, replyTo } = getConfig();
 
   if (!Buffer.isBuffer(pdfBuffer) || pdfBuffer.length === 0) {
@@ -72,7 +72,7 @@ export const sendCertificateEmail = async ({ certificate, pdfBuffer }) => {
 
   // Keep the same key across network retries for this one explicit send action.
   // A later admin resend gets a fresh key and is a separate intentional email.
-  const idempotencyKey = `certificate-email-${certificate.id}-${randomUUID()}`;
+  const idempotencyKey = requestedIdempotencyKey || `certificate-email-${certificate.id}-${randomUUID()}`;
   const payload = JSON.stringify({
     from,
     to: [certificate.studentEmail],
