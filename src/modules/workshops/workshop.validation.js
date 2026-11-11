@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const workshopTypes = ["RESIN_ART", "LIP_CARE_FORMULATION", "CUSTOM_GROUP"];
 const venueModes = ["CLIENT_VENUE", "KPX_VENUE", "UNDECIDED"];
-const bookingStatuses = ["NEW", "UNDER_REVIEW", "PROPOSAL_SENT", "ACCEPTED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED"];
+const bookingStatuses = ["NEW", "UNDER_REVIEW", "PROPOSAL_SENT", "ACCEPTED", "DECLINED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED"];
 
 export const idParamsSchema = z.object({ id: z.string().trim().min(1) });
 export const tierParamsSchema = z.object({ tierId: z.string().trim().min(1) });
@@ -66,10 +66,13 @@ export const createBookingSchema = z.object({
 export const updateBookingSchema = z.object({
   status: z.enum(bookingStatuses).optional(),
   eventDate: z.coerce.date().optional(),
+  proposalPrice: z.coerce.number().positive().max(999999999999.99).optional().nullable(),
+  proposalDetails: z.string().trim().min(10).max(5000).optional().nullable(),
+  proposalExpiresAt: z.coerce.date().optional().nullable(),
   customerMessage: z.string().trim().max(1500).optional().nullable(),
   adminNotes: z.string().trim().max(5000).optional().nullable(),
 }).strict().refine((value) => Object.keys(value).some((key) => key !== "customerMessage"), {
-  message: "Provide a status, event date, or admin note update",
+  message: "Provide a status, proposal, event date, or admin note update",
 });
 
 export const guestBookingAccessParamsSchema = z.object({
