@@ -340,7 +340,8 @@ const applyVerifiedTransaction = async (reference, transaction) => {
      */
     let registrationStatus = payment.registration?.status ?? null;
     let souvenirOrderStatus = payment.souvenirOrder?.status ?? null;
-    let workshopBookingStatus = payment.workshopBooking?.status ?? null;\n    let workshopPaymentNeedsReview = false;
+    let workshopBookingStatus = payment.workshopBooking?.status ?? null;
+    let workshopPaymentNeedsReview = false;
 
     if (payment.registrationId && status === "SUCCESS") {
       const updatedRegistration = await registrationService.markRegistrationPaid(payment.registrationId, tx);
