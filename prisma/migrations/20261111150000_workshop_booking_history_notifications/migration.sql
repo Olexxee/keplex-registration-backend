@@ -27,6 +27,8 @@ ALTER TABLE "EmailOutbox"
   FOREIGN KEY ("workshopBookingId") REFERENCES "WorkshopBooking"("id")
   ON DELETE CASCADE ON UPDATE CASCADE;
 
+CREATE TYPE "WorkshopBookingHistoryAction" AS ENUM ('CREATED', 'STATUS_CHANGED', 'RESCHEDULED', 'UPDATED');
+
 CREATE TABLE "WorkshopBookingHistory" (
   "id" TEXT NOT NULL,
   "bookingId" TEXT NOT NULL,
