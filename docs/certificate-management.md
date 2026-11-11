@@ -88,6 +88,9 @@ Configure these on the backend host and in local `.env`:
 - `CLOUDINARY_API_SECRET`
 - `RESEND_API_KEY`
 - `CERTIFICATE_FROM_EMAIL` — a sender identity verified in Resend
+- `EMAIL_OUTBOX_WORKER_ENABLED` — set to `true` on the Render delivery service; keep `false` for local development to prevent a local process from competing with production email delivery.
+- `EMAIL_OUTBOX_POLL_INTERVAL_MS` — defaults to 5000 milliseconds.
+- `EMAIL_OUTBOX_MAX_ATTEMPTS` — defaults to 8.
 
 If email configuration is missing or delivery fails, issuance still succeeds and records the delivery error. Configure email before production issuance. Each certificate issue/resend action targets exactly one student email address; there is no bulk-recipient mode. Network retries reuse one provider idempotency key, while a later deliberate resend is a distinct send action.
 
@@ -109,11 +112,24 @@ The QR code points to `FRONTEND_URL/certificates?number=<certificate-number>#ver
 
 ### Email delivery and resending
 
-Each issue or resend action sends one message to exactly one recipient (`to` contains only the certificate owner). It never sends to a class list or all students. The certificate sender uses a provider idempotency key shared by its internal network retries so a timeout does not accidentally duplicate the same action. A later admin-initiated resend is a new, explicit email action. The shared outbox worker processes one queued recipient per poll cycle to prevent burst delivery.
+Certificate email delivery uses the shared PostgreSQL-backed email outbox. Certificate issuance stores the certificate record and its first delivery job in the same database transaction after the PDF has been uploaded. A resend creates one new delivery job for that certificate. The queue payload stores only the certificate reference; the worker retrieves the exact authenticated PDF already stored for the certificate at send time.
 
-Resending uses the authenticated PDF already stored for that certificate. The backend first tries the exact secure URL returned by Cloudinary at upload time, then falls back to a newly signed raw-asset URL built from the stored public ID. Raw Cloudinary public IDs already contain their file extension, so the URL builder must not append a separate format extension. Resending does not re-render the certificate; artwork changes apply to newly issued certificates, not silently to previously issued records.
+Each job targets exactly one recipient: the email address stored on that certificate. There is no class list or bulk-recipient mode. The admin resend endpoint accepts an `Idempotency-Key` header. The frontend generates a fresh UUID for each deliberate resend click; repeated requests with that same key resolve to the same queue job. A later, deliberate click is a separate action.
 
-Every resend failure is now persisted as the latest `lastEmailError`, including failures while retrieving or validating the stored PDF (not only failures returned by the email provider). A successful provider acceptance records `emailSentAt` and clears the previous error. This timestamp records provider acceptance, not guaranteed inbox delivery.
+The embedded worker processes one job per polling cycle. A PostgreSQL transaction-level advisory lock is held across the full delivery operation, so only one process can send an outbox message at a time, even if more than one application process is running. Provider requests use an idempotency key derived from the persisted outbox job ID, so worker retries reuse the same provider key. This reduces duplicates after a timeout or process failure; it does not guarantee inbox delivery or absolute exactly-once delivery.
+
+The latest delivery state is exposed to authenticated certificate admins:
+- `PENDING` — queued for delivery.
+- `PROCESSING` — currently being delivered.
+- `SENT` — Resend accepted the message.
+- `DEAD` — the configured retry limit was reached or the job failed permanently.
+
+`emailSentAt` records the latest successful provider acceptance. It does not prove that the message reached the recipient's inbox. A later failed resend does not erase the timestamp of an earlier accepted email; the latest queue state and error explain the more recent attempt.
+
+The admin API returns `202 Accepted` when a resend has been queued. A successful issue operation returns the issued certificate plus `emailQueued: true`; the UI reports that the message is queued rather than claiming it has already been sent.
+
+Resending tries the exact secure URL saved at upload time, then builds a new signed raw-asset URL from the stored public ID. The fallback preserves the Cloudinary upload version parsed from the stored trusted URL, ensuring it addresses the same PDF asset version. Raw Cloudinary public IDs already include their file extension, so the URL builder must not append a second extension. Resending never re-renders a certificate.
+
 
 ### Renderer operations
 
@@ -138,3 +154,17 @@ For local development where migrations are normally created locally, inspect the
 The founder signature is supplied to the renderer through the backend-only `CERTIFICATE_SIGNATURE_BASE64` environment variable. The value must be base64-encoded PNG data (maximum decoded size 2 MB). The renderer validates the PNG signature before use and fails issuance if the secret is absent or invalid. The original signature is not committed to the repository, returned by any API, or hosted at a public URL.
 
 The signature is a visible authenticity element only. It is not a cryptographic PDF signature and does not prevent modification of an issued PDF. Cryptographic signing and tamper-evident validation are a separate security phase.
+
+
+## Certificate email outbox migration
+
+Apply `prisma/migrations/20261111170000_certificate_email_outbox` before deploying the outbox-aware certificate API. It adds the `CERTIFICATE_DELIVERY` outbox type and optional certificate foreign key. No existing training or workshop outbox records are rewritten.
+
+Deploy with:
+
+```bash
+npx prisma migrate deploy
+npx prisma generate
+```
+
+After the migration is present in the target database, set `EMAIL_OUTBOX_WORKER_ENABLED=true` on the Render backend service. Leave it `false` in a local environment. The same embedded worker continues to process training and workshop notification jobs as well as certificate delivery.
