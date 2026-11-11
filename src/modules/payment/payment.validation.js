@@ -14,3 +14,9 @@ export const paymentReferenceSchema = z.object({
     .max(100)
     .regex(/^[a-zA-Z0-9.=-]+$/),
 });
+
+
+export const initializeWorkshopPaymentSchema = z.object({
+  reference: z.string().trim().min(1).max(100).regex(/^[A-Z0-9-]+$/),
+  token: z.string().regex(/^[a-f0-9]{64}$/i),
+}).strict();
