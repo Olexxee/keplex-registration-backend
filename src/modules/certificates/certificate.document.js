@@ -297,7 +297,7 @@ const getStoredCertificateVersion = (documentUrl) => {
   const trustedUrl = getTrustedStoredCertificateUrl(documentUrl);
   if (!trustedUrl) return null;
   const versionSegment = new URL(trustedUrl).pathname.split("/").find((segment) => /^v\\d+$/.test(segment));
-  return versionSegment ? Number(versionSegment.slice(1)) : null;
+  return versionSegment ? versionSegment.slice(1) : null;
 };
 
 const getSignedCertificateUrl = (documentPublicId, version = null) => {
