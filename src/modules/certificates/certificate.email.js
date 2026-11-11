@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 const RESEND_URL = "https://api.resend.com/emails";
 const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_ATTEMPTS = 3;
@@ -64,6 +66,13 @@ export const sendCertificateEmail = async ({ certificate, pdfBuffer }) => {
     throw new Error("Certificate email failed: the certificate PDF is missing or empty.");
   }
 
+  if (typeof certificate.studentEmail !== "string" || !certificate.studentEmail.trim() || /[,;\s]/.test(certificate.studentEmail.trim())) {
+    throw new Error("Certificate email requires exactly one valid recipient address.");
+  }
+
+  // Keep the same key across network retries for this one explicit send action.
+  // A later admin resend gets a fresh key and is a separate intentional email.
+  const idempotencyKey = `certificate-email-${certificate.id}-${randomUUID()}`;
   const payload = JSON.stringify({
     from,
     to: [certificate.studentEmail],
@@ -89,6 +98,7 @@ export const sendCertificateEmail = async ({ certificate, pdfBuffer }) => {
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
         },
         body: payload,
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
