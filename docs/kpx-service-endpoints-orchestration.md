@@ -130,10 +130,10 @@ Add explicit endpoints to avoid client-selected generic target types:
 
 Workshop payment is implemented as a private guest flow: `POST /api/payments/workshops/initialize` accepts only a booking reference and private access token. The server uses the accepted proposal's stored price/currency; the browser cannot supply or override the amount. A verified full payment confirms an accepted booking. Deposits/installments are not supported. Appointment payments remain design-only.
 
-Each payment service loads the target and computes amount from stored prices or the current accepted quote. Extend Payment with nullable foreign keys to each target and a database CHECK constraint requiring exactly one payment target. Do not use an unconstrained polymorphic entityType/entityId pair. Public responses must never include providerPayload. Paystack verification remains server-side and idempotent.
+Each payment service loads the target and computes amount from stored prices or the accepted proposal. Workshop payment uses a private reference/token pair and the stored proposal price; the client cannot submit an amount. The Payment model has real foreign keys for registration, souvenir order, and workshop booking, with a CHECK constraint requiring exactly one target. Appointment payment association remains future work. Public responses must never include providerPayload. Paystack verification remains server-side and idempotent.
 
 Payment success transitions:
-- Workshop: mark paid and update booking only as allowed by quote and operational confirmation state.
+- Workshop: a verified full payment conditionally moves ACCEPTED → CONFIRMED, appends booking history, and queues a confirmation email in the same transaction.
 - Souvenir: mark paid and perform stock handling transactionally.
 - Appointment: mark paid, but retain approval/slot rules; payment alone must not override ADMIN_REVIEW.
 - Failed or abandoned payment never marks the target paid.
