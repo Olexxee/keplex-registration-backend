@@ -1,6 +1,4 @@
 -- Workshop booking audit history and transactional customer notification outbox.
-ALTER TYPE "EmailOutboxType" ADD VALUE IF NOT EXISTS 'WORKSHOP_BOOKING_NOTIFICATION';
-
 DROP INDEX IF EXISTS "EmailOutbox_registrationId_type_key";
 
 ALTER TABLE "EmailOutbox"
