@@ -19,7 +19,7 @@ export const toMinorUnits = (amount) => {
 
   if (!match) {
     throw new BadRequestError(
-      "The training program has an invalid payment amount",
+      "The payment amount is invalid",
     );
   }
 
@@ -309,6 +309,8 @@ const applyVerifiedTransaction = async (reference, transaction) => {
         status: payment.status,
         registrationStatus: payment.registration?.status ?? null,
         souvenirOrderStatus: payment.souvenirOrder?.status ?? null,
+        workshopBookingStatus: payment.workshopBooking?.status ?? null,
+        workshopPaymentNeedsReview: false,
         alreadyProcessed: true,
       };
     }
