@@ -10,6 +10,7 @@ import {
   updateParticipantTierSchema,
   createBookingSchema,
   guestBookingAccessParamsSchema,
+  guestProposalResponseSchema,
   updateBookingSchema,
   setActiveSchema,
   idParamsSchema,
@@ -24,6 +25,7 @@ const admin = [authMiddleware, roleMiddleware("ADMIN", "SUPER_ADMIN")];
 router.get("/", controller.getPublicOfferings);
 router.post("/bookings", validateBody(createBookingSchema), controller.createGuestBooking);
 router.get("/bookings/access/:reference/:token", validateParams(guestBookingAccessParamsSchema), controller.getGuestBooking);
+router.post("/bookings/access/:reference/:token/respond", validateParams(guestBookingAccessParamsSchema), validateBody(guestProposalResponseSchema), controller.respondToGuestProposal);
 
 router.get("/admin/bookings", ...admin, validateQuery(paginationQuerySchema), controller.listAdminBookings);
 router.patch("/admin/bookings/:id", ...admin, validateParams(idParamsSchema), validateBody(updateBookingSchema), controller.updateAdminBooking);

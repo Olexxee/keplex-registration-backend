@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { guestBookingAccessParamsSchema, updateBookingSchema } from "./workshop.validation.js";
+import { guestBookingAccessParamsSchema, guestProposalResponseSchema, updateBookingSchema } from "./workshop.validation.js";
 
 const validParams = {
   reference: "KPX-WKS-ABC123",
@@ -51,4 +51,34 @@ test("rejects empty updates, customer-message-only updates, and unknown fields",
 
 test("accepts private admin note-only updates", () => {
   assert.equal(updateBookingSchema.safeParse({ adminNotes: "Call the venue manager." }).success, true);
+});
+
+test("requires complete proposal terms when sending a proposal", () => {
+  const valid = updateBookingSchema.safeParse({
+    status: "PROPOSAL_SENT",
+    proposalPrice: 125000,
+    proposalDetails: "Two-day resin art workshop including materials and guided instruction.",
+    proposalExpiresAt: "2026-12-01T10:00:00.000Z",
+  });
+  assert.equal(valid.success, true);
+});
+
+test("accepts DECLINED as a persisted booking status", () => {
+  assert.equal(updateBookingSchema.safeParse({ status: "DECLINED" }).success, true);
+});
+
+test("rejects proposal prices that exceed the database decimal precision", () => {
+  assert.equal(updateBookingSchema.safeParse({
+    status: "PROPOSAL_SENT",
+    proposalPrice: 10000000000,
+    proposalDetails: "A detailed workshop proposal with materials and facilitation.",
+    proposalExpiresAt: "2026-12-01T10:00:00.000Z",
+  }).success, false);
+});
+
+test("accepts only explicit customer proposal decisions", () => {
+  assert.equal(guestProposalResponseSchema.safeParse({ decision: "ACCEPT" }).success, true);
+  assert.equal(guestProposalResponseSchema.safeParse({ decision: "DECLINE" }).success, true);
+  assert.equal(guestProposalResponseSchema.safeParse({ decision: "CONFIRM" }).success, false);
+  assert.equal(guestProposalResponseSchema.safeParse({ decision: "ACCEPT", status: "CONFIRMED" }).success, false);
 });
