@@ -399,7 +399,7 @@ const applyVerifiedTransaction = async (reference, transaction) => {
           await tx.emailOutbox.create({
             data: {
               type: "WORKSHOP_BOOKING_NOTIFICATION",
-              dedupeKey: `workshop-payment-confirmed:${payment.id}`,
+              dedupeKey: `workshop-payment-confirmed:${payment.id}:${history.id}`,
               workshopBookingId: payment.workshopBookingId,
               payload: {
                 notificationType: "CONFIRMED",
@@ -423,7 +423,7 @@ const applyVerifiedTransaction = async (reference, transaction) => {
         } else {
           const booking = await tx.workshopBooking.findUnique({ where: { id: payment.workshopBookingId } });
           workshopBookingStatus = booking?.status ?? null;
-          workshopPaymentNeedsReview = true;
+          workshopPaymentNeedsReview = booking?.status !== "CONFIRMED";
         }
       } else if (payment.workshopBooking?.status !== "CONFIRMED") {
         workshopPaymentNeedsReview = true;
