@@ -66,3 +66,12 @@ test("requires complete proposal terms when sending a proposal", () => {
 test("accepts DECLINED as a persisted booking status", () => {
   assert.equal(updateBookingSchema.safeParse({ status: "DECLINED" }).success, true);
 });
+
+test("rejects proposal prices that exceed the database decimal precision", () => {
+  assert.equal(updateBookingSchema.safeParse({
+    status: "PROPOSAL_SENT",
+    proposalPrice: 10000000000,
+    proposalDetails: "A detailed workshop proposal with materials and facilitation.",
+    proposalExpiresAt: "2026-12-01T10:00:00.000Z",
+  }).success, false);
+});
