@@ -7,6 +7,7 @@ export const enqueueTrainingTelegramAccessEmail = async (registrationId, snapsho
 
   await outboxDb.enqueueEmail({
     type: "TRAINING_TELEGRAM_ACCESS",
+    dedupeKey: `${registrationId}:TRAINING_TELEGRAM_ACCESS`,
     registrationId,
     payload: snapshot,
   }, tx);
