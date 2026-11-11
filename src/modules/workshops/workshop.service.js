@@ -99,8 +99,8 @@ export const setParticipantTierActive = async (tierId, active) => {
   return workshopDb.setParticipantTierActive(tierId, active);
 };
 
-export const createGuestBooking = async (data) => {
-  const offering = await workshopDb.findOfferingById(data.offeringId);
+export const createGuestBooking = async (data, db = workshopDb) => {
+  const offering = await db.findOfferingById(data.offeringId);
   if (!offering || !offering.active) throw new NotFoundError("Workshop offering is not available");
   const tier = offering.participantTiers.find((item) => item.id === data.participantTierId && item.active);
   if (!tier) throw new BadRequestError("Choose an active participant tier for this workshop");
@@ -117,7 +117,7 @@ export const createGuestBooking = async (data) => {
   const reference = `KPX-WKS-${crypto.randomBytes(5).toString("hex").toUpperCase()}`;
   const accessToken = crypto.randomBytes(32).toString("hex");
   const accessTokenHash = crypto.createHash("sha256").update(accessToken).digest("hex");
-  const booking = await workshopDb.createBookingWithInitialHistory({publicReference: reference,
+  const booking = await db.createBookingWithInitialHistory({publicReference: reference,
       accessTokenHash,
       customerName: data.customerName,
       customerEmail: data.customerEmail,
@@ -252,9 +252,9 @@ export const updateAdminBooking = async (id, data, actorAdminId) => {
 };
 
 
-export const respondToGuestProposal = async ({ reference, token, decision }) => {
+export const respondToGuestProposal = async ({ reference, token, decision }, db = workshopDb) => {
   const accessTokenHash = crypto.createHash("sha256").update(token).digest("hex");
-  const booking = await workshopDb.findGuestBookingForDecision(reference, accessTokenHash);
+  const booking = await db.findGuestBookingForDecision(reference, accessTokenHash);
   if (!booking) throw new NotFoundError("Workshop booking not found");
   if (booking.status !== "PROPOSAL_SENT") {
     throw new ConflictError("This proposal is no longer awaiting a response");
@@ -262,7 +262,7 @@ export const respondToGuestProposal = async ({ reference, token, decision }) => 
   if (!booking.proposalExpiresAt || booking.proposalExpiresAt <= new Date()) {
     throw new ConflictError("This proposal has expired. Contact KPX Academy for an updated proposal");
   }
-  const updated = await workshopDb.recordGuestProposalDecision({ bookingId: booking.id, decision });
+  const updated = await db.recordGuestProposalDecision({ bookingId: booking.id, decision });
   if (!updated) throw new ConflictError("This proposal was already answered or has expired");
   return { publicReference: updated.publicReference, status: updated.status, proposalRespondedAt: updated.proposalRespondedAt };
 };
