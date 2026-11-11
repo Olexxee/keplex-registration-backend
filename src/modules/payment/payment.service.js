@@ -383,7 +383,7 @@ const applyVerifiedTransaction = async (reference, transaction) => {
         });
         if (transitioned.count === 1) {
           const booking = await tx.workshopBooking.findUnique({ where: { id: payment.workshopBookingId } });
-          await tx.workshopBookingHistory.create({
+          const history = await tx.workshopBookingHistory.create({
             data: {
               bookingId: payment.workshopBookingId,
               action: "STATUS_CHANGED",
@@ -392,6 +392,29 @@ const applyVerifiedTransaction = async (reference, transaction) => {
               previousEventDate: booking.eventDate,
               newEventDate: booking.eventDate,
               customerMessage: "Payment was verified successfully. Your workshop booking is confirmed.",
+            },
+          });
+          await tx.emailOutbox.create({
+            data: {
+              type: "WORKSHOP_BOOKING_NOTIFICATION",
+              dedupeKey: `workshop-payment-confirmed:${payment.id}`,
+              workshopBookingId: payment.workshopBookingId,
+              payload: {
+                notificationType: "CONFIRMED",
+                name: booking.customerName,
+                email: booking.customerEmail,
+                publicReference: booking.publicReference,
+                workshopTitle: booking.workshopTitleSnapshot,
+                previousStatus: "ACCEPTED",
+                newStatus: "CONFIRMED",
+                previousEventDate: booking.eventDate.toISOString(),
+                newEventDate: booking.eventDate.toISOString(),
+                customerMessage: "Your payment has been verified and your workshop booking is confirmed.",
+                proposalPrice: booking.proposalPrice?.toString() ?? null,
+                proposalDetails: booking.proposalDetails ?? null,
+                proposalExpiresAt: booking.proposalExpiresAt?.toISOString() ?? null,
+                currency: booking.currency,
+              },
             },
           });
           workshopBookingStatus = "CONFIRMED";
