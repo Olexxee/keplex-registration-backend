@@ -208,8 +208,17 @@ export const updateAdminBooking = async (id, data, actorAdminId) => {
     throw new ConflictError(`Workshop booking cannot move from ${booking.status} to ${data.status}`);
   }
 
-  if (data.eventDate && new Date(data.eventDate) <= new Date()
-    && new Date(data.eventDate).getTime() !== booking.eventDate.getTime()) {
+  const statusChanged = Boolean(data.status && data.status !== booking.status);
+  const dateChanged = Boolean(data.eventDate
+    && new Date(data.eventDate).getTime() !== booking.eventDate.getTime());
+
+  if (data.customerMessage && !statusChanged && !dateChanged) {
+    throw new BadRequestError("A customer message must accompany a status change or reschedule");
+  }
+  if (dateChanged && ["IN_PROGRESS", "COMPLETED", "CANCELLED"].includes(booking.status)) {
+    throw new ConflictError("A workshop cannot be rescheduled after it has started or reached a terminal state");
+  }
+  if (dateChanged && new Date(data.eventDate) <= new Date()) {
     throw new BadRequestError("Choose a future event date when rescheduling");
   }
 
