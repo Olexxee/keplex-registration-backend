@@ -1,6 +1,12 @@
 import { prisma } from "../../config/prisma.js";
 import * as certificateDb from "../certificates/certificate.db.js";
-import { downloadCertificateDocument } from "../certificates/certificate.document.js";
+import {
+  CERTIFICATE_TEMPLATE_VERSION,
+  createCertificatePdf,
+  downloadCertificateDocument,
+  isCertificateDocumentCurrent,
+  uploadCertificateDocument,
+} from "../certificates/certificate.document.js";
 import { sendCertificateEmail } from "../certificates/certificate.email.js";
 import * as outboxDb from "./emailOutbox.db.js";
 import { sendTrainingTelegramAccessEmail, sendWorkshopBookingNotification } from "./emailOutbox.email.js";
@@ -60,7 +66,35 @@ const processOne = async () => prisma.$transaction(async (tx) => {
         throw error;
       }
 
-      const pdfBuffer = await downloadCertificateDocument(certificate);
+      let pdfBuffer;
+      if (!isCertificateDocumentCurrent(certificate)) {
+        // Upgrade legacy stored PDFs at the point of an explicit delivery.
+        // Preserve the issued identity and original issue date; only the
+        // document artwork/template version changes.
+        pdfBuffer = await createCertificatePdf({
+          studentName: certificate.studentName,
+          trainingProgramTitle: certificate.trainingProgramTitle,
+          certificateNumber: certificate.certificateNumber,
+          issuedAt: certificate.issuedAt,
+        });
+        const refreshedDocument = await uploadCertificateDocument(
+          pdfBuffer,
+          certificate.certificateNumber,
+        );
+        await certificateDb.updateCertificate(certificate.id, {
+          documentUrl: refreshedDocument.url,
+          documentPublicId: refreshedDocument.publicId,
+          documentTemplateVersion: CERTIFICATE_TEMPLATE_VERSION,
+        }, tx);
+        certificate = {
+          ...certificate,
+          documentUrl: refreshedDocument.url,
+          documentPublicId: refreshedDocument.publicId,
+          documentTemplateVersion: CERTIFICATE_TEMPLATE_VERSION,
+        };
+      } else {
+        pdfBuffer = await downloadCertificateDocument(certificate);
+      }
       result = await sendCertificateEmail({
         certificate,
         pdfBuffer,
