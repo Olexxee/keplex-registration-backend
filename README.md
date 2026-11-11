@@ -1158,3 +1158,20 @@ FAQs are managed from the authenticated admin workspace and are served publicly 
 Each FAQ has a question, answer, status (`DRAFT`, `PUBLISHED`, or `ARCHIVED`), and display order. New entries default to `DRAFT`. Publishing sets `publishedAt`; moving an entry out of `PUBLISHED` clears it. The public endpoint never returns drafts or archived entries.
 
 Production deployments must apply the committed Prisma migration with `npx prisma migrate deploy`.
+
+
+### Workshop booking status lifecycle
+
+Admin booking updates enforce the following state machine:
+
+- `NEW` → `UNDER_REVIEW` or `CANCELLED`
+- `UNDER_REVIEW` → `PROPOSAL_SENT`, `ACCEPTED`, or `CANCELLED`
+- `PROPOSAL_SENT` → `ACCEPTED` or `CANCELLED`
+- `ACCEPTED` → `CONFIRMED` or `CANCELLED`
+- `CONFIRMED` → `IN_PROGRESS` or `CANCELLED`
+- `IN_PROGRESS` → `COMPLETED`
+- `COMPLETED` and `CANCELLED` are terminal states.
+
+Status transitions use a conditional database update against the previously read status. If another admin changes the booking concurrently, the second update receives a conflict response and must refresh. Admin-note-only updates remain available in every state. Empty and unknown-field update payloads are rejected.
+
+Run `npm test` to execute the workshop lifecycle tests.
