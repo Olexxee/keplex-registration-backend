@@ -8,6 +8,7 @@ process.env.DATABASE_URL ||= "postgresql://test:test@localhost:5432/certificate_
 
 const {
   CERTIFICATE_TEMPLATE_VERSION,
+  createCertificateSvg,
   downloadCertificateDocument,
   getCertificateDocumentAccessUrl,
   isCertificateDocumentCurrent,
@@ -19,6 +20,28 @@ test("identifies legacy certificate PDFs for regeneration before delivery", () =
   assert.equal(CERTIFICATE_TEMPLATE_VERSION, "2026-11-reference-v1");
   assert.equal(isCertificateDocumentCurrent({ documentTemplateVersion: "legacy" }), false);
   assert.equal(isCertificateDocumentCurrent({ documentTemplateVersion: CERTIFICATE_TEMPLATE_VERSION }), true);
+});
+
+
+test("renders the approved certificate artwork with the recipient's preserved identity", async () => {
+  const signatureDataUri = "data:image/png;base64,dGVzdC1zaWduYXR1cmU=";
+  const svg = await createCertificateSvg({
+    studentName: "Legacy Student",
+    trainingProgramTitle: "KPX Resin Art Training",
+    certificateNumber: "KPX-2026-LEGACY01",
+    issuedAt: new Date("2026-10-01T00:00:00.000Z"),
+    signatureDataUri,
+  });
+
+  assert.match(svg, /KPX Academy Certificate of Completion/);
+  assert.match(svg, /Legacy Student/);
+  assert.match(svg, /KPX RESIN ART TRAINING/);
+  assert.match(svg, /KPX-2026-LEGACY01/);
+  assert.match(svg, /01 October 2026/);
+  assert.match(svg, /data:image\/png;base64,dGVzdC1zaWduYXR1cmU=/);
+  assert.match(svg, /#9B4D79/);
+  assert.match(svg, /#2455E8/);
+  assert.match(svg, /Scan to Verify/);
 });
 
 test("uses the exact authenticated Cloudinary URL saved at upload time", () => {
