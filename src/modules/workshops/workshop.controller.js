@@ -64,3 +64,8 @@ export const updateAdminBooking = asyncWrapper(async (req, res) => {
   const data = await workshopService.updateAdminBooking(req.validated.params.id, req.validated.body, req.user.id);
   return res.json({ success: true, data });
 });
+
+export const respondToGuestProposal = asyncWrapper(async (req, res) => {
+  const data = await workshopService.respondToGuestProposal({ ...req.validated.params, ...req.validated.body });
+  return res.json({ success: true, data });
+});
