@@ -1191,7 +1191,7 @@ Customer emails are queued for proposal sent, confirmed, cancelled, and reschedu
 
 ### Migration
 
-Apply `prisma/migrations/20261111150000_workshop_booking_history_notifications` with:
+Apply the two migrations `20261111145900_add_workshop_booking_notification_type` and `20261111150000_workshop_booking_history_notifications` with:
 
 ```bash
 npx prisma migrate deploy
