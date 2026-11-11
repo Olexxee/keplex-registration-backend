@@ -75,3 +75,11 @@ export const updateBooking = (id, data, tx = prisma) => tx.workshopBooking.updat
   where: { id }, data,
   include: { offering: { select: { title: true, slug: true } }, participantTier: true },
 });
+export const updateBookingFromStatus = async (id, currentStatus, data, tx = prisma) => {
+  const result = await tx.workshopBooking.updateMany({
+    where: { id, status: currentStatus },
+    data,
+  });
+  if (result.count !== 1) return null;
+  return findBookingById(id, tx);
+};
