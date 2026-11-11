@@ -52,7 +52,7 @@ test("fallback URL preserves the exact Cloudinary version from the stored PDF UR
     requested.push(String(url));
     if (String(url) === storedUrl) return new Response("Not found", { status: 404 });
     const fallback = new URL(String(url));
-    assert.ok(fallback.pathname.split("/").includes("v1794323075"));
+    assert.ok(fallback.pathname.split("/").includes("v1794323075"), `Fallback URL omitted stored version: ${fallback.pathname}`);
     assert.ok(fallback.pathname.includes("/raw/authenticated/"));
     assert.ok(fallback.pathname.endsWith("/kpx/certificates/certificate-1.pdf"));
     return new Response(pdf, {
