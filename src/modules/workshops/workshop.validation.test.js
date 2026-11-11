@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { guestBookingAccessParamsSchema, updateBookingSchema } from "./workshop.validation.js";
+import { guestBookingAccessParamsSchema, guestProposalResponseSchema, updateBookingSchema } from "./workshop.validation.js";
 
 const validParams = {
   reference: "KPX-WKS-ABC123",
@@ -74,4 +74,11 @@ test("rejects proposal prices that exceed the database decimal precision", () =>
     proposalDetails: "A detailed workshop proposal with materials and facilitation.",
     proposalExpiresAt: "2026-12-01T10:00:00.000Z",
   }).success, false);
+});
+
+test("accepts only explicit customer proposal decisions", () => {
+  assert.equal(guestProposalResponseSchema.safeParse({ decision: "ACCEPT" }).success, true);
+  assert.equal(guestProposalResponseSchema.safeParse({ decision: "DECLINE" }).success, true);
+  assert.equal(guestProposalResponseSchema.safeParse({ decision: "CONFIRM" }).success, false);
+  assert.equal(guestProposalResponseSchema.safeParse({ decision: "ACCEPT", status: "CONFIRMED" }).success, false);
 });
