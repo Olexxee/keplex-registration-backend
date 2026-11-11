@@ -1,5 +1,5 @@
 import * as outboxDb from "./emailOutbox.db.js";
-import { sendTrainingTelegramAccessEmail } from "./emailOutbox.email.js";
+import { sendTrainingTelegramAccessEmail, sendWorkshopBookingNotification } from "./emailOutbox.email.js";
 
 const POLL_INTERVAL_MS = Math.max(1000, Number(process.env.EMAIL_OUTBOX_POLL_INTERVAL_MS) || 5000);
 const MAX_ATTEMPTS = Math.max(1, Number(process.env.EMAIL_OUTBOX_MAX_ATTEMPTS) || 8);
@@ -13,8 +13,14 @@ const processOne = async () => {
   const job = await outboxDb.claimNextEmail();
   if (!job) return false;
   try {
-    if (job.type !== "TRAINING_TELEGRAM_ACCESS") throw new Error(`Unsupported email outbox type: ${job.type}`);
-    const result = await sendTrainingTelegramAccessEmail({ id: job.id, ...job.payload });
+    let result;
+    if (job.type === "TRAINING_TELEGRAM_ACCESS") {
+      result = await sendTrainingTelegramAccessEmail({ id: job.id, ...job.payload });
+    } else if (job.type === "WORKSHOP_BOOKING_NOTIFICATION") {
+      result = await sendWorkshopBookingNotification({ id: job.id, ...job.payload });
+    } else {
+      throw new Error(`Unsupported email outbox type: ${job.type}`);
+    }
     await outboxDb.markEmailSent(job.id, result.id ?? null);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

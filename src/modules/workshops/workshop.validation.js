@@ -65,9 +65,11 @@ export const createBookingSchema = z.object({
 
 export const updateBookingSchema = z.object({
   status: z.enum(bookingStatuses).optional(),
+  eventDate: z.coerce.date().optional(),
+  customerMessage: z.string().trim().max(1500).optional().nullable(),
   adminNotes: z.string().trim().max(5000).optional().nullable(),
-}).strict().refine((value) => Object.keys(value).length > 0, {
-  message: "Provide a status or admin note update",
+}).strict().refine((value) => Object.keys(value).some((key) => key !== "customerMessage"), {
+  message: "Provide a status, event date, or admin note update",
 });
 
 export const guestBookingAccessParamsSchema = z.object({

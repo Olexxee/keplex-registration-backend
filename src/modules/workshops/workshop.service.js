@@ -1,6 +1,5 @@
 import crypto from "node:crypto";
 import slugify from "slugify";
-import { prisma } from "../../config/prisma.js";
 import { BadRequestError, ConflictError, NotFoundError } from "../../classes/errorClasses.js";
 import * as workshopDb from "./workshop.db.js";
 import { isWorkshopBookingTransitionAllowed } from "./workshop.lifecycle.js";
@@ -118,9 +117,7 @@ export const createGuestBooking = async (data) => {
   const reference = `KPX-WKS-${crypto.randomBytes(5).toString("hex").toUpperCase()}`;
   const accessToken = crypto.randomBytes(32).toString("hex");
   const accessTokenHash = crypto.createHash("sha256").update(accessToken).digest("hex");
-  const result = await prisma.$transaction(async (tx) => {
-    const booking = await workshopDb.createBooking({
-      publicReference: reference,
+  const booking = await workshopDb.createBookingWithInitialHistory({publicReference: reference,
       accessTokenHash,
       customerName: data.customerName,
       customerEmail: data.customerEmail,
@@ -139,19 +136,18 @@ export const createGuestBooking = async (data) => {
       customWorkshopDescription: data.customWorkshopDescription ?? null,
       customerNotes: data.customerNotes ?? null,
       status: "NEW",
-    }, tx);
-    return {
-      publicReference: booking.publicReference,
-      status: booking.status,
-      workshopTitle: booking.workshopTitleSnapshot,
-      participantCount: booking.participantCount,
-      price: booking.priceSnapshot,
-      currency: booking.currency,
-      eventDate: booking.eventDate,
-      contactEmail: offering.contactEmail,
-      contactWhatsApp: offering.contactWhatsApp,
-    };
   });
+  const result = {
+    publicReference: booking.publicReference,
+    status: booking.status,
+    workshopTitle: booking.workshopTitleSnapshot,
+    participantCount: booking.participantCount,
+    price: booking.priceSnapshot,
+    currency: booking.currency,
+    eventDate: booking.eventDate,
+    contactEmail: offering.contactEmail,
+    contactWhatsApp: offering.contactWhatsApp,
+  };
   return {
     ...result,
     accessToken,
@@ -181,6 +177,7 @@ export const getGuestBooking = async ({ reference, token }) => {
     updatedAt: booking.updatedAt,
     offering: booking.offering,
     participantTier: booking.participantTier,
+    history: booking.history,
   };
 };
 
@@ -192,22 +189,38 @@ export const listAdminBookings = async (query) => {
   return { items, pagination: { page: query.page, limit: query.limit, total } };
 };
 
-export const updateAdminBooking = async (id, data) => {
+export const updateAdminBooking = async (id, data, actorAdminId) => {
   const booking = await workshopDb.findBookingById(id);
   if (!booking) throw new NotFoundError("Workshop booking not found");
 
-  if (!data.status || data.status === booking.status) {
-    return workshopDb.updateBooking(id, data);
-  }
-
-  if (!isWorkshopBookingTransitionAllowed(booking.status, data.status)) {
+  if (data.status && data.status !== booking.status
+    && !isWorkshopBookingTransitionAllowed(booking.status, data.status)) {
     throw new ConflictError(`Workshop booking cannot move from ${booking.status} to ${data.status}`);
   }
 
-  const updated = await workshopDb.updateBookingFromStatus(id, booking.status, data);
+  const statusChanged = Boolean(data.status && data.status !== booking.status);
+  const dateChanged = Boolean(data.eventDate
+    && new Date(data.eventDate).getTime() !== booking.eventDate.getTime());
+
+  if (data.customerMessage && !statusChanged && !dateChanged) {
+    throw new BadRequestError("A customer message must accompany a status change or reschedule");
+  }
+  if (dateChanged && ["IN_PROGRESS", "COMPLETED", "CANCELLED"].includes(booking.status)) {
+    throw new ConflictError("A workshop cannot be rescheduled after it has started or reached a terminal state");
+  }
+  if (dateChanged && new Date(data.eventDate) <= new Date()) {
+    throw new BadRequestError("Choose a future event date when rescheduling");
+  }
+
+  const updated = await workshopDb.updateBookingWithHistoryAndNotifications({
+    currentBooking: booking,
+    data,
+    actorAdminId,
+    customerMessage: data.customerMessage,
+  });
   if (updated) return updated;
 
   const latest = await workshopDb.findBookingById(id);
   if (!latest) throw new NotFoundError("Workshop booking not found");
-  throw new ConflictError(`Workshop booking status changed concurrently to ${latest.status}; refresh before retrying`);
+  throw new ConflictError(`Workshop booking changed concurrently (current status: ${latest.status}); refresh before retrying`);
 };

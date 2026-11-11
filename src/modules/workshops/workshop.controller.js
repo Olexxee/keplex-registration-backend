@@ -61,6 +61,6 @@ export const listAdminBookings = asyncWrapper(async (req, res) => {
 });
 
 export const updateAdminBooking = asyncWrapper(async (req, res) => {
-  const data = await workshopService.updateAdminBooking(req.validated.params.id, req.validated.body);
+  const data = await workshopService.updateAdminBooking(req.validated.params.id, req.validated.body, req.user.id);
   return res.json({ success: true, data });
 });
