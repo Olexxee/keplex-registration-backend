@@ -96,9 +96,9 @@ export const sendWorkshopBookingNotification = async ({
     ? new Intl.DateTimeFormat("en-NG", { dateStyle: "long", timeStyle: "short", timeZone: "Africa/Lagos" }).format(new Date(value))
     : "Not specified";
   const dateLine = notificationType === "RESCHEDULED"
-    ? `Previous date: ${formatDate(previousEventDate)}\\nNew date: ${formatDate(newEventDate)}`
+    ? `Previous date: ${formatDate(previousEventDate)}\nNew date: ${formatDate(newEventDate)}`
     : `Preferred event date: ${formatDate(newEventDate)}`;
-  const messageText = customerMessage ? `\\n\\nMessage from KPX Academy: ${customerMessage}` : "";
+  const messageText = customerMessage ? `\n\nMessage from KPX Academy: ${customerMessage}` : "";
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     signal: AbortSignal.timeout(15000),
@@ -123,14 +123,16 @@ export const sendWorkshopBookingNotification = async ({
         "Use the private booking link provided when you submitted the request to review its latest status and details.",
         "",
         "KPX Academy",
-      ].join("\\n"),
+      ].join("\n"),
       html: `
         <div style="font-family:Arial,sans-serif;line-height:1.7;color:#222;max-width:600px;margin:auto">
           <h2 style="color:#17324D">${copy.heading}</h2>
           <p>Hello ${safeName},</p>
           <p>${copy.message}</p>
           <p><strong>Workshop:</strong> ${safeTitle}<br/><strong>Booking reference:</strong> ${safeReference}</p>
-          <p><strong>${notificationType === "RESCHEDULED" ? "Previous date" : "Preferred event date"}:</strong> ${formatDate(previousEventDate)}<br/><strong>Current date:</strong> ${formatDate(newEventDate)}</p>
+          ${notificationType === "RESCHEDULED"
+            ? `<p><strong>Previous date:</strong> ${formatDate(previousEventDate)}<br/><strong>New date:</strong> ${formatDate(newEventDate)}</p>`
+            : `<p><strong>Event date:</strong> ${formatDate(newEventDate)}</p>`}
           ${safeMessage ? `<p><strong>Message from KPX Academy:</strong><br/>${safeMessage}</p>` : ""}
           <p>Use the private booking link provided when you submitted the request to review its latest status and details.</p>
           <p>Regards,<br/><strong>KPX Academy</strong></p>
