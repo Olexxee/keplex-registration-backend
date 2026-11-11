@@ -201,6 +201,9 @@ export const updateAdminBooking = async (id, data, actorAdminId) => {
   const booking = await workshopDb.findBookingById(id);
   if (!booking) throw new NotFoundError("Workshop booking not found");
 
+  if (data.status === "CONFIRMED" && booking.status !== "CONFIRMED") {
+    throw new BadRequestError("A workshop booking is confirmed only after server-side payment verification");
+  }
   if (["ACCEPTED", "DECLINED"].includes(data.status)) {
     throw new BadRequestError("Customers must accept or decline proposals through their private booking page");
   }
