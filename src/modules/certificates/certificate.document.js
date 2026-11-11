@@ -4,6 +4,8 @@ import { cloudinary } from "../../config/cloudinary.js";
 import { getSiteBranding } from "../siteContent/siteContent.service.js";
 import qrcode from "../../lib/vendor/qrcode-generator.mjs";
 
+export const CERTIFICATE_TEMPLATE_VERSION = "2026-11-reference-v1";
+
 const PAGE_WIDTH = 841.89;
 const PAGE_HEIGHT = 595.28;
 const RENDER_WIDTH = 3508;
@@ -266,6 +268,9 @@ export const wrapJpegInPdf = (jpeg) => {
   chunks.push(Buffer.from(xref, "ascii"));
   return Buffer.concat(chunks);
 };
+
+export const isCertificateDocumentCurrent = (certificate) =>
+  certificate?.documentTemplateVersion === CERTIFICATE_TEMPLATE_VERSION;
 
 export const createCertificatePdf = async (certificate) => {
   const branding = await getSiteBranding();
