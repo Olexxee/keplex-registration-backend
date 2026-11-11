@@ -1109,3 +1109,35 @@ Do not use `prisma migrate dev` against production.
 - Do not remove a programme's Telegram link while checkouts are in progress.
 - Certificate rendering now composes the branded SVG, official Site Branding logo, dynamic certificate details and QR code on the backend, then stores a 300-DPI A4 landscape PDF in Cloudinary. Resends reuse the exact stored PDF. See [certificate management](docs/certificate-management.md), [design specification](docs/certificate-design-specification.md), and [decorative artwork](assets/certificates/kpx-certificate-artwork.svg). The PDF is currently a raster page with system font fallbacks; font embedding and final visual validation remain outstanding. CERT-01 defines the A4 landscape composition and decorative SVG artwork; see [the certificate design specification](docs/certificate-design-specification.md) and [decorative artwork](assets/certificates/kpx-certificate-artwork.svg). Dynamic certificate content, PDF rendering, QR generation and delivery remain backend responsibilities.
 
+
+
+## Organization profile and public footer
+
+Organization identity and public contact details are managed separately from the transactional email sender and from the Site Branding logo. The single-record `OrganizationProfile` model is the source of truth for the public footer. The logo continues to be managed by the existing Site Branding feature.
+
+### Public endpoint
+
+`GET /api/site-content/organization`
+
+Returns the public organization profile: organization name, tagline, description, contact email, phone, WhatsApp number, address, operating hours, social profile URLs, and copyright text. The endpoint is intentionally public and must not include private credentials or transactional sender configuration.
+
+### Admin endpoint
+
+`PATCH /api/site-content/admin/organization`
+
+Requires the existing admin access token and `ADMIN` or `SUPER_ADMIN` role. Accepts a partial JSON object containing only the organization profile fields. Email and URL fields are validated by the API. The profile is stored as a singleton record with ID `organization-profile`.
+
+### Important separation
+
+- `contactEmail` is the public-facing contact address shown on the website.
+- `TRANSACTIONAL_FROM_EMAIL` and `CERTIFICATE_FROM_EMAIL` remain server environment configuration and must not be changed by editing organization information.
+- The public logo remains in `SiteBranding`; this profile does not replace the existing logo-management flow.
+- Footer navigation links remain application routes, not administrator-supplied arbitrary URLs.
+
+### Migration
+
+The schema migration is:
+
+`prisma/migrations/20261111000000_add_organization_profile/migration.sql`
+
+Apply it during deployment with `npm run prisma:migrate` (or `npx prisma migrate deploy`) and regenerate Prisma Client with `npm run prisma:generate`. The API returns safe defaults when the singleton has not yet been saved, so deploying the migration does not require a manual seed step. Admins can populate the details under **Admin → Organization info**.
