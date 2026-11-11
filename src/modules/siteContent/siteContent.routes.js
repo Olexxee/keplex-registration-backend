@@ -2,15 +2,21 @@ import express from "express";
 import * as controller from "./siteContent.controller.js";
 import * as founderController from "./founder.controller.js";
 import * as heroSlidesController from "./heroSlides.controller.js";
+import * as organizationProfileController from "./organizationProfile.controller.js";
 import * as uploadController from "./siteContent.upload.controller.js";
 import { uploadSiteImage, uploadResourcePdf } from "./siteContent.upload.js";
 import { authMiddleware } from "../../middlewares/authMiddleware.js";
 import { roleMiddleware } from "../../middlewares/roleMiddleware.js";
 import { validateBody, validateParams, validateQuery } from "../../middlewares/validateMiddleware.js";
 import { idParamsSchema, slugParamsSchema, founderProfileSchema, heroSchema, categorySchema, galleryImageSchema, resourceSchema, statusSchema, galleryQuerySchema, resourceQuerySchema, siteBrandingSchema } from "./siteContent.validation.js";
+import { organizationProfileSchema } from "./organizationProfile.validation.js";
 
 const router = express.Router();
 const admin = [authMiddleware, roleMiddleware("ADMIN", "SUPER_ADMIN")];
+
+// Organization profile and global site branding.
+router.get("/organization", organizationProfileController.getOrganizationProfile);
+router.patch("/admin/organization", ...admin, validateBody(organizationProfileSchema), organizationProfileController.updateOrganizationProfile);
 
 // Global site branding and founder profile.
 router.get("/branding", controller.getSiteBranding);
