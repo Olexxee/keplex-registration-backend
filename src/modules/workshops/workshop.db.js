@@ -131,10 +131,10 @@ export const updateBookingWithHistoryAndNotifications = async ({
       },
     });
 
-    const notificationTypes = [
-      ...(statusChanged && notificationForStatus(updated.status) ? [notificationForStatus(updated.status)] : []),
-      ...(dateChanged ? ["RESCHEDULED"] : []),
-    ];
+    const notificationType = statusChanged && notificationForStatus(updated.status)
+      ? notificationForStatus(updated.status)
+      : dateChanged ? "RESCHEDULED" : null;
+    const notificationTypes = notificationType ? [notificationType] : [];
 
     for (const notificationType of notificationTypes) {
       await transaction.emailOutbox.create({
