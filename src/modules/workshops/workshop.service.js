@@ -1,6 +1,5 @@
 import crypto from "node:crypto";
 import slugify from "slugify";
-import { prisma } from "../../config/prisma.js";
 import { BadRequestError, ConflictError, NotFoundError } from "../../classes/errorClasses.js";
 import * as workshopDb from "./workshop.db.js";
 import { isWorkshopBookingTransitionAllowed } from "./workshop.lifecycle.js";
@@ -118,9 +117,7 @@ export const createGuestBooking = async (data) => {
   const reference = `KPX-WKS-${crypto.randomBytes(5).toString("hex").toUpperCase()}`;
   const accessToken = crypto.randomBytes(32).toString("hex");
   const accessTokenHash = crypto.createHash("sha256").update(accessToken).digest("hex");
-  const result = await prisma.$transaction(async (tx) => {
-    const booking = await workshopDb.createBooking({
-      publicReference: reference,
+  const booking = await workshopDb.createBookingWithInitialHistory({publicReference: reference,
       accessTokenHash,
       customerName: data.customerName,
       customerEmail: data.customerEmail,
@@ -139,25 +136,18 @@ export const createGuestBooking = async (data) => {
       customWorkshopDescription: data.customWorkshopDescription ?? null,
       customerNotes: data.customerNotes ?? null,
       status: "NEW",
-    }, tx);
-    await workshopDb.createBookingHistory({
-      bookingId: booking.id,
-      action: "CREATED",
-      newStatus: booking.status,
-      newEventDate: booking.eventDate,
-    }, tx);
-    return {
-      publicReference: booking.publicReference,
-      status: booking.status,
-      workshopTitle: booking.workshopTitleSnapshot,
-      participantCount: booking.participantCount,
-      price: booking.priceSnapshot,
-      currency: booking.currency,
-      eventDate: booking.eventDate,
-      contactEmail: offering.contactEmail,
-      contactWhatsApp: offering.contactWhatsApp,
-    };
   });
+  const result = {
+    publicReference: booking.publicReference,
+    status: booking.status,
+    workshopTitle: booking.workshopTitleSnapshot,
+    participantCount: booking.participantCount,
+    price: booking.priceSnapshot,
+    currency: booking.currency,
+    eventDate: booking.eventDate,
+    contactEmail: offering.contactEmail,
+    contactWhatsApp: offering.contactWhatsApp,
+  };
   return {
     ...result,
     accessToken,
