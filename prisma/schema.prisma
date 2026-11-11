@@ -560,7 +560,8 @@ model WorkshopParticipantTier {
 model WorkshopBooking {
   id String @id @default(cuid())
 
-  publicReference  String @unique
+  publicReference  String  @unique
+  accessTokenHash  String? @unique
   customerName     String
   customerEmail    String
   customerWhatsApp String
