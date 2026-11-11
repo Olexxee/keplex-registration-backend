@@ -67,3 +67,8 @@ export const updateBookingSchema = z.object({
   status: z.enum(bookingStatuses).optional(),
   adminNotes: z.string().trim().max(5000).optional().nullable(),
 });
+
+export const guestBookingAccessParamsSchema = z.object({
+  reference: z.string().trim().min(8).max(80),
+  token: z.string().trim().length(64).regex(/^[a-f0-9]{64}$/i),
+});
