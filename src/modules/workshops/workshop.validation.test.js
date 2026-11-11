@@ -52,3 +52,17 @@ test("rejects empty updates, customer-message-only updates, and unknown fields",
 test("accepts private admin note-only updates", () => {
   assert.equal(updateBookingSchema.safeParse({ adminNotes: "Call the venue manager." }).success, true);
 });
+
+test("requires complete proposal terms when sending a proposal", () => {
+  const valid = updateBookingSchema.safeParse({
+    status: "PROPOSAL_SENT",
+    proposalPrice: 125000,
+    proposalDetails: "Two-day resin art workshop including materials and guided instruction.",
+    proposalExpiresAt: "2026-12-01T10:00:00.000Z",
+  });
+  assert.equal(valid.success, true);
+});
+
+test("accepts DECLINED as a persisted booking status", () => {
+  assert.equal(updateBookingSchema.safeParse({ status: "DECLINED" }).success, true);
+});
