@@ -30,7 +30,7 @@ export const createOffering = (data, tx = prisma) => tx.workshopOffering.create(
   include: { participantTiers: true },
 });
 export const updateOffering = (id, data, tx = prisma) => tx.workshopOffering.update({
-  where: { id, },
+  where: { id },
   data,
   include: { participantTiers: { orderBy: [{ participantCount: "asc" }, { displayOrder: "asc" }] } },
 });
@@ -50,12 +50,20 @@ export const setParticipantTierActive = (id, active, tx = prisma) => tx.workshop
   where: { id }, data: { active },
 });
 export const createBooking = (data, tx = prisma) => tx.workshopBooking.create({ data });
+export const createBookingHistory = (data, tx = prisma) => tx.workshopBookingHistory.create({ data });
 export const findGuestBookingByCredentials = (publicReference, accessTokenHash, tx = prisma) =>
   tx.workshopBooking.findFirst({
     where: { publicReference, accessTokenHash },
     include: {
       offering: { select: { title: true, slug: true, contactEmail: true, contactWhatsApp: true } },
       participantTier: { select: { label: true, participantCount: true, price: true, currency: true } },
+      history: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          action: true, previousStatus: true, newStatus: true,
+          previousEventDate: true, newEventDate: true, customerMessage: true, createdAt: true,
+        },
+      },
     },
   });
 export const listAdminBookings = ({ status, page = 1, limit = 20 } = {}, tx = prisma) =>
@@ -75,11 +83,79 @@ export const updateBooking = (id, data, tx = prisma) => tx.workshopBooking.updat
   where: { id }, data,
   include: { offering: { select: { title: true, slug: true } }, participantTier: true },
 });
-export const updateBookingFromStatus = async (id, currentStatus, data, tx = prisma) => {
-  const result = await tx.workshopBooking.updateMany({
-    where: { id, status: currentStatus },
-    data,
+
+const notificationForStatus = (status) => ({
+  PROPOSAL_SENT: "PROPOSAL_SENT",
+  CONFIRMED: "CONFIRMED",
+  CANCELLED: "CANCELLED",
+}[status] ?? null);
+
+export const updateBookingWithHistoryAndNotifications = async ({
+  currentBooking, data, actorAdminId, customerMessage,
+}, tx = prisma) => prisma.$transaction(async (transaction) => {
+  const statusChanged = Boolean(data.status && data.status !== currentBooking.status);
+  const dateChanged = Boolean(data.eventDate && new Date(data.eventDate).getTime() !== currentBooking.eventDate.getTime());
+  const updateData = {
+    ...(statusChanged ? { status: data.status } : {}),
+    ...(dateChanged ? { eventDate: data.eventDate } : {}),
+    ...(Object.hasOwn(data, "adminNotes") ? { adminNotes: data.adminNotes } : {}),
+  };
+
+  const result = await transaction.workshopBooking.updateMany({
+    where: { id: currentBooking.id, status: currentBooking.status, updatedAt: currentBooking.updatedAt },
+    data: updateData,
   });
   if (result.count !== 1) return null;
-  return findBookingById(id, tx);
-};
+
+  const updated = await transaction.workshopBooking.findUnique({
+    where: { id: currentBooking.id },
+    include: {
+      offering: { select: { title: true, slug: true } },
+      participantTier: true,
+    },
+  });
+
+  if (statusChanged || dateChanged) {
+    const history = await transaction.workshopBookingHistory.create({
+      data: {
+        bookingId: currentBooking.id,
+        action: statusChanged && dateChanged ? "UPDATED" : statusChanged ? "STATUS_CHANGED" : "RESCHEDULED",
+        previousStatus: currentBooking.status,
+        newStatus: updated.status,
+        previousEventDate: currentBooking.eventDate,
+        newEventDate: updated.eventDate,
+        customerMessage: customerMessage ?? null,
+        actorAdminId,
+      },
+    });
+
+    const notificationTypes = [
+      ...(statusChanged && notificationForStatus(updated.status) ? [notificationForStatus(updated.status)] : []),
+      ...(dateChanged ? ["RESCHEDULED"] : []),
+    ];
+
+    for (const notificationType of notificationTypes) {
+      await transaction.emailOutbox.create({
+        data: {
+          type: "WORKSHOP_BOOKING_NOTIFICATION",
+          dedupeKey: `workshop-booking:${currentBooking.id}:${history.id}:${notificationType}`,
+          workshopBookingId: currentBooking.id,
+          payload: {
+            notificationType,
+            name: updated.customerName,
+            email: updated.customerEmail,
+            publicReference: updated.publicReference,
+            workshopTitle: updated.workshopTitleSnapshot,
+            previousStatus: currentBooking.status,
+            newStatus: updated.status,
+            previousEventDate: currentBooking.eventDate.toISOString(),
+            newEventDate: updated.eventDate.toISOString(),
+            customerMessage: customerMessage ?? null,
+          },
+        },
+      });
+    }
+  }
+
+  return updated;
+});
