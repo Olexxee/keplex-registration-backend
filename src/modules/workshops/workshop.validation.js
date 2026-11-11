@@ -66,7 +66,7 @@ export const createBookingSchema = z.object({
 export const updateBookingSchema = z.object({
   status: z.enum(bookingStatuses).optional(),
   eventDate: z.coerce.date().optional(),
-  proposalPrice: z.coerce.number().positive().max(999999999999.99).optional().nullable(),
+  proposalPrice: z.coerce.number().positive().max(9999999999.99).optional().nullable(),
   proposalDetails: z.string().trim().min(10).max(5000).optional().nullable(),
   proposalExpiresAt: z.coerce.date().optional().nullable(),
   customerMessage: z.string().trim().max(1500).optional().nullable(),
