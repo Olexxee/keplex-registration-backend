@@ -128,8 +128,8 @@ export const createCertificateSvg = async ({
   const nameSize = Math.min(42, Math.max(25, 42 - Math.max(0, [...name].length - 22) * 0.65));
   const programmeSize = Math.min(27, Math.max(17, 27 - Math.max(0, [...programme].length - 28) * 0.32));
   const logoMarkup = logoDataUri
-    ? `<image href="${logoDataUri}" xlink:href="${logoDataUri}" x="566" y="76" width="170" height="70" preserveAspectRatio="xMidYMid meet"/>`
-    : `<text x="651" y="111" text-anchor="middle" font-family="Sora, Arial, sans-serif" font-size="24" font-weight="800" letter-spacing="2" fill="#17324D">KPX</text><text x="651" y="132" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="10" letter-spacing="5" fill="#2A7F7F">ACADEMY</text>`;
+    ? `<image href="${logoDataUri}" xlink:href="${logoDataUri}" x="77" y="12" width="130" height="83" preserveAspectRatio="xMidYMid meet"/>`
+    : `<text x="142" y="58" text-anchor="middle" font-family="Sora, Arial, sans-serif" font-size="24" font-weight="800" letter-spacing="2" fill="#17324D">KPX</text><text x="142" y="76" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="10" letter-spacing="5" fill="#2A7F7F">ACADEMY</text>`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${RENDER_WIDTH}" height="${RENDER_HEIGHT}" viewBox="0 0 842 595">
@@ -144,29 +144,29 @@ export const createCertificateSvg = async ({
   <path d="M126 287 H716" stroke="#2455E8" stroke-width="1.5" fill="none"/>
   <text x="421" y="313" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="14" fill="#55524E">for successfully completing the</text>
   <text x="421" y="348" text-anchor="middle" font-family="'Cormorant Garamond', Georgia, serif" font-size="${programmeSize}" font-weight="700" fill="#9B2163" textLength="570" lengthAdjust="spacingAndGlyphs">${safeProgramme}</text>
-  <g font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#55524E">
-    <text x="186" y="340">In recognition of the foundational knowledge and practical skills demonstrated in</text>
-    <text x="186" y="357">the training programme, including an understanding of its materials, tools and</text>
-    <text x="186" y="374">techniques. Following successful review and approval of the required practical</text>
-    <text x="186" y="391">work, the recipient has met KPX Academy's requirements for certification.</text>
+  <g text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#4C4C4C">
+    <text x="421" y="378">In recognition of the foundational knowledge and practical skills demonstrated in</text>
+    <text x="421" y="395">the training programme, including an understanding of its materials, tools and</text>
+    <text x="421" y="412">techniques. Following successful review and approval of the required practical</text>
+    <text x="421" y="429">work, the recipient has met KPX Academy's requirements for certification.</text>
   </g>
   <g fill="#17324D">
     <path d="M186 479 H340 M545 479 H660" stroke="#252525" stroke-width="1.1"/>
     <circle cx="186" cy="479" r="1.8" fill="#252525"/><circle cx="340" cy="479" r="1.8" fill="#252525"/>
     <circle cx="545" cy="479" r="1.8" fill="#252525"/><circle cx="660" cy="479" r="1.8" fill="#252525"/>
-    <text x="186" y="501" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700">Kepemi Oluwafunke (Keplex)</text>
-    <text x="186" y="520" font-family="Georgia, 'Times New Roman', serif" font-size="12" fill="#55524E">Founder, KPX Academy</text>
-    <text x="545" y="501" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700">Date of issue</text>
-    <text x="545" y="520" font-family="Georgia, 'Times New Roman', serif" font-size="12" fill="#55524E">${escapeXml(date)}</text>
+    <text x="284" y="510" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700">Kepemi Oluwafunke (Keplex)</text>
+    <text x="284" y="527" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="12" fill="#55524E">Founder, KPX Academy</text>
+    <text x="669" y="510" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700">Date of issue</text>
+    <text x="669" y="527" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="12" fill="#55524E">${escapeXml(date)}</text>
   </g>
   <g transform="translate(417 459) scale(${qrScale})">
     ${qr.markup}
   </g>
   <text x="447" y="535" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="10" font-style="italic" fill="#55524E">Scan to Verify</text>
-  <text x="125" y="566" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-style="italic" fill="#55524E">Certificate ID: ${safeCertificateNumber}</text>
-  <text x="520" y="566" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-style="italic" fill="#55524E">kpxacademy.com.ng/certificates</text>
-  <text x="743" y="548" text-anchor="middle" font-family="cursive" font-size="13" font-style="italic" fill="#5CA39A">Practical Skills.</text>
-  <text x="743" y="565" text-anchor="middle" font-family="cursive" font-size="13" font-style="italic" fill="#5CA39A">More Possibilities.</text>
+  <text x="535" y="548" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-style="italic" fill="#55524E">Certificate ID: ${safeCertificateNumber}</text>
+  <text x="390" y="580" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-style="italic" fill="#55524E">kpxacademy.com.ng/certificates</text>
+  <text x="690" y="565" text-anchor="middle" font-family="cursive" font-size="13" font-style="italic" fill="#5CA39A">Practical Skills.</text>
+  <text x="690" y="580" text-anchor="middle" font-family="cursive" font-size="13" font-style="italic" fill="#5CA39A">More Possibilities.</text>
 </svg>`;
 };
 
