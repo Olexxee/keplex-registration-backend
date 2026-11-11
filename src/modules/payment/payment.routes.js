@@ -8,6 +8,7 @@ import {
 import {
   initializePaymentSchema,
   paymentReferenceSchema,
+  initializeWorkshopPaymentSchema,
 } from "./payment.validation.js";
 
 
@@ -15,6 +16,12 @@ import {
 const paymentRouter = express.Router();
 
 paymentRouter.post("/webhook", handlePaystackWebhook);
+
+paymentRouter.post(
+  "/workshops/initialize",
+  validateBody(initializeWorkshopPaymentSchema),
+  controller.initializeWorkshopPayment,
+);
 
 paymentRouter.post(
   "/initialize",
