@@ -3,6 +3,8 @@ import * as controller from "./siteContent.controller.js";
 import * as founderController from "./founder.controller.js";
 import * as heroSlidesController from "./heroSlides.controller.js";
 import * as organizationProfileController from "./organizationProfile.controller.js";
+import * as faqController from "./faq.controller.js";
+import { createFaqSchema, updateFaqSchema } from "./faq.validation.js";
 import * as uploadController from "./siteContent.upload.controller.js";
 import { uploadSiteImage, uploadResourcePdf } from "./siteContent.upload.js";
 import { authMiddleware } from "../../middlewares/authMiddleware.js";
@@ -13,6 +15,13 @@ import { organizationProfileSchema } from "./organizationProfile.validation.js";
 
 const router = express.Router();
 const admin = [authMiddleware, roleMiddleware("ADMIN", "SUPER_ADMIN")];
+
+// Frequently asked questions.
+router.get("/faq", faqController.getPublicFaqs);
+router.get("/admin/faq", ...admin, faqController.getAdminFaqs);
+router.post("/admin/faq", ...admin, validateBody(createFaqSchema), faqController.createFaq);
+router.patch("/admin/faq/:id", ...admin, validateParams(idParamsSchema), validateBody(updateFaqSchema), faqController.updateFaq);
+router.delete("/admin/faq/:id", ...admin, validateParams(idParamsSchema), faqController.deleteFaq);
 
 // Organization profile and global site branding.
 router.get("/organization", organizationProfileController.getOrganizationProfile);
