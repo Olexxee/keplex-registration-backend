@@ -293,26 +293,43 @@ const getTrustedStoredCertificateUrl = (documentUrl) => {
   }
 };
 
-const getSignedCertificateUrl = (documentPublicId) => {
+const getStoredCertificateVersion = (documentUrl) => {
+  const trustedUrl = getTrustedStoredCertificateUrl(documentUrl);
+  if (!trustedUrl) return null;
+  const match = new URL(trustedUrl).pathname.match(/\\/v(\\d+)\\//);
+  return match ? Number(match[1]) : null;
+};
+
+const getSignedCertificateUrl = (documentPublicId, version = null) => {
   if (!documentPublicId) return null;
-  // Cloudinary raw public IDs include the file extension. Do not pass format:
-  // doing so can produce a second extension and a URL that returns 404.
+  // Raw public IDs already include the file extension; do not pass format.
+  // Preserve the upload version so fallback retrieval addresses the exact PDF
+  // version that was saved on the certificate record, not a newer asset.
   return cloudinary.url(documentPublicId, {
     resource_type: "raw",
     type: "authenticated",
     sign_url: true,
     secure: true,
+    ...(Number.isSafeInteger(version) && version > 0 ? { version } : {}),
   });
 };
 
-export const getCertificateDocumentAccessUrl = (certificate) =>
-  getTrustedStoredCertificateUrl(certificate.documentUrl) ||
-  getSignedCertificateUrl(certificate.documentPublicId);
+export const getCertificateDocumentAccessUrl = (certificate) => {
+  const storedUrl = getTrustedStoredCertificateUrl(certificate?.documentUrl);
+  return storedUrl || getSignedCertificateUrl(
+    certificate?.documentPublicId,
+    getStoredCertificateVersion(certificate?.documentUrl),
+  );
+};
 
 export const downloadCertificateDocument = async (certificate) => {
+  const storedUrl = getTrustedStoredCertificateUrl(certificate?.documentUrl);
   const urls = [
-    getTrustedStoredCertificateUrl(certificate?.documentUrl),
-    getSignedCertificateUrl(certificate?.documentPublicId),
+    storedUrl,
+    getSignedCertificateUrl(
+      certificate?.documentPublicId,
+      getStoredCertificateVersion(certificate?.documentUrl),
+    ),
   ].filter((url, index, all) => url && all.indexOf(url) === index);
 
   if (!urls.length) throw new Error("Certificate document is not available for resend.");
