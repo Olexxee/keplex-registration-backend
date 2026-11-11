@@ -151,9 +151,9 @@ export const createCertificateSvg = async ({
     <text x="421" y="429">work, the recipient has met KPX Academy's requirements for certification.</text>
   </g>
   <g fill="#17324D">
-    <path d="M186 479 H340 M545 479 H660" stroke="#252525" stroke-width="1.1"/>
-    <circle cx="186" cy="479" r="1.8" fill="#252525"/><circle cx="340" cy="479" r="1.8" fill="#252525"/>
-    <circle cx="545" cy="479" r="1.8" fill="#252525"/><circle cx="660" cy="479" r="1.8" fill="#252525"/>
+    <path d="M211 494 H357 M596 494 H742" stroke="#252525" stroke-width="1.1"/>
+    <circle cx="211" cy="494" r="1.8" fill="#252525"/><circle cx="357" cy="494" r="1.8" fill="#252525"/>
+    <circle cx="596" cy="494" r="1.8" fill="#252525"/><circle cx="742" cy="494" r="1.8" fill="#252525"/>
     <text x="284" y="510" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700">Kepemi Oluwafunke (Keplex)</text>
     <text x="284" y="527" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="12" fill="#55524E">Founder, KPX Academy</text>
     <text x="669" y="510" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700">Date of issue</text>
