@@ -163,7 +163,7 @@ export const initializeWorkshopPayment = async ({ reference, token }) => {
       currency: booking.currency,
       reference: payment.reference,
       callback_url: process.env.FRONTEND_URL
-        ? `${process.env.FRONTEND_URL.replace(/\\/+$/, "")}/workshops/access/${encodeURIComponent(reference)}/${token}?payment_reference=${encodeURIComponent(payment.reference)}`
+        ? `${process.env.FRONTEND_URL.replace(/\/+$/, "")}/workshops/access/${encodeURIComponent(reference)}/${token}?payment_reference=${encodeURIComponent(payment.reference)}`
         : process.env.PAYSTACK_CALLBACK_URL,
       metadata: {
         paymentId: payment.id,
@@ -339,7 +339,8 @@ const applyVerifiedTransaction = async (reference, transaction) => {
      * payment update.
      */
     let registrationStatus = payment.registration?.status ?? null;
-    let souvenirOrderStatus = payment.souvenirOrder?.status ?? null;\n    let workshopBookingStatus = payment.workshopBooking?.status ?? null;\n    let workshopPaymentNeedsReview = false;
+    let souvenirOrderStatus = payment.souvenirOrder?.status ?? null;
+    let workshopBookingStatus = payment.workshopBooking?.status ?? null;\n    let workshopPaymentNeedsReview = false;
 
     if (payment.registrationId && status === "SUCCESS") {
       const updatedRegistration = await registrationService.markRegistrationPaid(payment.registrationId, tx);
