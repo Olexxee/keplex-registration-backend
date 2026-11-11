@@ -15,6 +15,15 @@ export const initializePayment = asyncWrapper(async (req, res) => {
   });
 });
 
+export const initializeWorkshopPayment = asyncWrapper(async (req, res) => {
+  const result = await paymentService.initializeWorkshopPayment(req.validated.body);
+  return res.status(201).json({
+    success: true,
+    message: "Workshop payment initialized successfully",
+    data: result,
+  });
+});
+
 export const verifyPayment = asyncWrapper(async (req, res) => {
   const result = await paymentService.verifyPayment(req.params.reference);
 
