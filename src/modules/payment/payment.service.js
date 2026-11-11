@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { prisma } from "../../config/prisma.js";
-import { BadRequestError, NotFoundError } from "../../classes/errorClasses.js";
+import { BadRequestError, ConflictError, NotFoundError } from "../../classes/errorClasses.js";
 import * as paymentDb from "./payment.db.js";
 import * as registrationService from "../registration/registration.service.js";
 import * as souvenirDb from "../souvenirs/souvenir.db.js";
@@ -95,6 +95,94 @@ export const initializeSouvenirPayment = async ({ orderId, accessToken }) => {
     throw error;
   }
 };
+const createWorkshopPaymentReference = () =>
+  `KPX-WKS-${Date.now()}-${crypto.randomBytes(6).toString("hex")}`;
+
+const workshopPaymentResponse = (payment) => ({
+  paymentId: payment.id,
+  reference: payment.reference,
+  authorizationUrl: payment.authorizationUrl,
+  accessCode: payment.accessCode,
+  amount: payment.amount,
+  currency: payment.currency,
+});
+
+export const initializeWorkshopPayment = async ({ reference, token }) => {
+  const accessTokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const booking = await paymentDb.findGuestWorkshopBookingForPayment(reference, accessTokenHash);
+  if (!booking) throw new NotFoundError("Workshop booking not found");
+  if (booking.status !== "ACCEPTED") {
+    throw new ConflictError("Only an accepted workshop proposal can proceed to payment");
+  }
+  if (booking.proposalPrice == null) {
+    throw new ConflictError("This accepted proposal has no payable amount. Contact KPX Academy");
+  }
+  if (booking.currency !== "NGN") {
+    throw new BadRequestError("Only NGN payments are currently supported");
+  }
+
+  const latestPayment = await paymentDb.findLatestWorkshopPayment(booking.id);
+  if (latestPayment?.status === "SUCCESS") {
+    throw new ConflictError("This workshop proposal has already been paid");
+  }
+
+  const pendingPayment = await paymentDb.findPendingWorkshopPayment(booking.id);
+  if (pendingPayment?.authorizationUrl) return workshopPaymentResponse(pendingPayment);
+  if (pendingPayment) {
+    throw new ConflictError("Secure checkout is already being prepared. Try again shortly");
+  }
+
+  const amountInMinorUnits = toMinorUnits(booking.proposalPrice);
+  if (amountInMinorUnits <= 0) {
+    throw new BadRequestError("Workshop proposal amount must be greater than zero");
+  }
+
+  let payment;
+  try {
+    payment = await paymentDb.createPayment({
+      workshopBookingId: booking.id,
+      provider: "PAYSTACK",
+      reference: createWorkshopPaymentReference(),
+      amount: booking.proposalPrice,
+      currency: booking.currency,
+      status: "PENDING",
+    });
+  } catch (error) {
+    if (error?.code === "P2002") {
+      const concurrentPayment = await paymentDb.findPendingWorkshopPayment(booking.id);
+      if (concurrentPayment?.authorizationUrl) return workshopPaymentResponse(concurrentPayment);
+      throw new ConflictError("A workshop checkout is already being prepared. Try again shortly");
+    }
+    throw error;
+  }
+
+  try {
+    const result = await initializePaystackTransaction({
+      email: booking.customerEmail,
+      amount: String(amountInMinorUnits),
+      currency: booking.currency,
+      reference: payment.reference,
+      callback_url: process.env.FRONTEND_URL
+        ? `${process.env.FRONTEND_URL.replace(/\\/+$/, "")}/workshops/access/${encodeURIComponent(reference)}/${token}?payment_reference=${encodeURIComponent(payment.reference)}`
+        : process.env.PAYSTACK_CALLBACK_URL,
+      metadata: {
+        paymentId: payment.id,
+        workshopBookingId: booking.id,
+        publicReference: booking.publicReference,
+        paymentType: "WORKSHOP_BOOKING",
+      },
+    });
+    const updated = await paymentDb.updatePayment(payment.id, {
+      authorizationUrl: result.authorization_url,
+      accessCode: result.access_code,
+    });
+    return workshopPaymentResponse(updated);
+  } catch (error) {
+    await paymentDb.updatePayment(payment.id, { status: "FAILED" });
+    throw error;
+  }
+};
+
 export const initializePayment = async ({ name, email, trainingProgramId }) => {
   /*
    * Load authoritative programme configuration before creating
@@ -249,7 +337,7 @@ const applyVerifiedTransaction = async (reference, transaction) => {
      * payment update.
      */
     let registrationStatus = payment.registration?.status ?? null;
-    let souvenirOrderStatus = payment.souvenirOrder?.status ?? null;
+    let souvenirOrderStatus = payment.souvenirOrder?.status ?? null;\n    let workshopBookingStatus = payment.workshopBooking?.status ?? null;\n    let workshopPaymentNeedsReview = false;
 
     if (payment.registrationId && status === "SUCCESS") {
       const updatedRegistration = await registrationService.markRegistrationPaid(payment.registrationId, tx);
@@ -285,7 +373,71 @@ const applyVerifiedTransaction = async (reference, transaction) => {
       souvenirOrderStatus = updatedOrder.status;
     }
 
-    return { reference: updatedPayment.reference, status: updatedPayment.status, registrationStatus, souvenirOrderStatus, alreadyProcessed: false };
+    if (payment.workshopBookingId && status === "SUCCESS") {
+      if (payment.workshopBooking?.status === "ACCEPTED") {
+        const transitioned = await tx.workshopBooking.updateMany({
+          where: { id: payment.workshopBookingId, status: "ACCEPTED" },
+          data: { status: "CONFIRMED" },
+        });
+        if (transitioned.count === 1) {
+          const booking = await tx.workshopBooking.findUnique({ where: { id: payment.workshopBookingId } });
+          await tx.workshopBookingHistory.create({
+            data: {
+              bookingId: payment.workshopBookingId,
+              action: "STATUS_CHANGED",
+              previousStatus: "ACCEPTED",
+              newStatus: "CONFIRMED",
+              previousEventDate: booking.eventDate,
+              newEventDate: booking.eventDate,
+              customerMessage: "Payment was verified successfully. Your workshop booking is confirmed.",
+            },
+          });
+          workshopBookingStatus = "CONFIRMED";
+        } else {
+          const booking = await tx.workshopBooking.findUnique({ where: { id: payment.workshopBookingId } });
+          workshopBookingStatus = booking?.status ?? null;
+          workshopPaymentNeedsReview = true;
+        }
+      } else if (payment.workshopBooking?.status !== "CONFIRMED") {
+        workshopPaymentNeedsReview = true;
+      }
+    } else if (payment.workshopBookingId && status === "REVERSED") {
+      if (payment.workshopBooking?.status === "CONFIRMED") {
+        const transitioned = await tx.workshopBooking.updateMany({
+          where: { id: payment.workshopBookingId, status: "CONFIRMED" },
+          data: { status: "ACCEPTED" },
+        });
+        if (transitioned.count === 1) {
+          const booking = await tx.workshopBooking.findUnique({ where: { id: payment.workshopBookingId } });
+          await tx.workshopBookingHistory.create({
+            data: {
+              bookingId: payment.workshopBookingId,
+              action: "STATUS_CHANGED",
+              previousStatus: "CONFIRMED",
+              newStatus: "ACCEPTED",
+              previousEventDate: booking.eventDate,
+              newEventDate: booking.eventDate,
+              customerMessage: "The payment was reversed. Contact KPX Academy before making another payment.",
+            },
+          });
+          workshopBookingStatus = "ACCEPTED";
+        } else {
+          workshopPaymentNeedsReview = true;
+        }
+      } else {
+        workshopPaymentNeedsReview = true;
+      }
+    }
+
+    return {
+      reference: updatedPayment.reference,
+      status: updatedPayment.status,
+      registrationStatus,
+      souvenirOrderStatus,
+      workshopBookingStatus,
+      workshopPaymentNeedsReview,
+      alreadyProcessed: false,
+    };
   });
 };
 
