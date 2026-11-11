@@ -115,9 +115,12 @@ export const createGuestBooking = async (data) => {
   }
 
   const reference = `KPX-WKS-${crypto.randomBytes(5).toString("hex").toUpperCase()}`;
-  return prisma.$transaction(async (tx) => {
+  const accessToken = crypto.randomBytes(32).toString("hex");
+  const accessTokenHash = crypto.createHash("sha256").update(accessToken).digest("hex");
+  const result = await prisma.$transaction(async (tx) => {
     const booking = await workshopDb.createBooking({
       publicReference: reference,
+      accessTokenHash,
       customerName: data.customerName,
       customerEmail: data.customerEmail,
       customerWhatsApp: data.customerWhatsApp,
@@ -148,6 +151,36 @@ export const createGuestBooking = async (data) => {
       contactWhatsApp: offering.contactWhatsApp,
     };
   });
+  return {
+    ...result,
+    accessToken,
+    accessUrlPath: `/api/workshops/bookings/access/${reference}/${accessToken}`,
+  };
+};
+
+export const getGuestBooking = async ({ reference, token }) => {
+  const accessTokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const booking = await workshopDb.findGuestBookingByCredentials(reference, accessTokenHash);
+  if (!booking) throw new NotFoundError("Workshop booking not found");
+  return {
+    publicReference: booking.publicReference,
+    status: booking.status,
+    workshopTitle: booking.workshopTitleSnapshot,
+    workshopType: booking.workshopType,
+    participantCount: booking.participantCount,
+    price: booking.priceSnapshot,
+    currency: booking.currency,
+    eventDate: booking.eventDate,
+    venueMode: booking.venueMode,
+    venueAddress: booking.venueAddress,
+    city: booking.city,
+    customWorkshopDescription: booking.customWorkshopDescription,
+    customerNotes: booking.customerNotes,
+    createdAt: booking.createdAt,
+    updatedAt: booking.updatedAt,
+    offering: booking.offering,
+    participantTier: booking.participantTier,
+  };
 };
 
 export const listAdminBookings = async (query) => {
