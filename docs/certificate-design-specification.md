@@ -18,7 +18,7 @@ Match the latest supplied KPX completion certificate reference. This reference s
 | Pale pink | #F6DCE7 | Top-left logo banner |
 | Charcoal | #25292D | Inset page border and signature/date rules |
 
-The artwork uses darker/lighter derived shades of the approved navy, teal and gold tokens to create depth. These are tonal variations, not new brand colours.
+The wave artwork uses restrained tonal variations of blue, magenta and grey from the supplied reference. These are reference-specific certificate colours, not a replacement for the academy's wider site palette.
 
 ## Composition and geometry
 
