@@ -100,6 +100,17 @@ export const findActiveCertificateForRecipient = (studentEmail, trainingProgramT
     },
   });
 
+const certificateInclude = {
+  trainingProgram: { select: { id: true, title: true } },
+  submission: { select: { id: true, studentName: true, studentEmail: true } },
+  emailOutbox: {
+    where: { type: "CERTIFICATE_DELIVERY" },
+    orderBy: { createdAt: "desc" },
+    take: 1,
+    select: { status: true, updatedAt: true, lastError: true },
+  },
+};
+
 export const createCertificate = (data, tx = prisma) =>
   tx.certificate.create({
     data,
@@ -109,13 +120,66 @@ export const createCertificate = (data, tx = prisma) =>
     },
   });
 
+export const createCertificateWithInitialDelivery = (data) =>
+  prisma.$transaction(async (tx) => {
+    const certificate = await tx.certificate.create({
+      data,
+      include: {
+        trainingProgram: { select: { id: true, title: true } },
+        submission: { select: { id: true, status: true } },
+      },
+    });
+    const delivery = await tx.emailOutbox.create({
+      data: {
+        type: "CERTIFICATE_DELIVERY",
+        dedupeKey: `certificate:${certificate.id}:issue`,
+        certificateId: certificate.id,
+        payload: { certificateId: certificate.id },
+      },
+      select: { id: true, status: true },
+    });
+    return { certificate, delivery };
+  });
+
+export const enqueueCertificateResend = async (id, idempotencyKey) =>
+  prisma.$transaction(async (tx) => {
+    const locked = await tx.$queryRaw`
+      SELECT "id"
+      FROM "Certificate"
+      WHERE "id" = ${id}
+      FOR UPDATE
+    `;
+    if (!locked.length) return null;
+
+    const certificate = await tx.certificate.findUnique({ where: { id } });
+    if (!certificate || certificate.status !== "ISSUED") {
+      return { certificate, delivery: null, created: false };
+    }
+
+    const dedupeKey = `certificate:${id}:resend:${idempotencyKey}`;
+    const inserted = await tx.emailOutbox.createMany({
+      data: [{
+        type: "CERTIFICATE_DELIVERY",
+        dedupeKey,
+        certificateId: id,
+        payload: { certificateId: id },
+      }],
+      skipDuplicates: true,
+    });
+    const delivery = await tx.emailOutbox.findUnique({ where: { dedupeKey } });
+    if (inserted.count === 1) {
+      await tx.certificate.update({
+        where: { id },
+        data: { lastEmailError: null },
+      });
+    }
+    return { certificate, delivery, created: inserted.count === 1 };
+  });
+
 export const findCertificateById = (id, tx = prisma) =>
   tx.certificate.findUnique({
     where: { id },
-    include: {
-      trainingProgram: { select: { id: true, title: true } },
-      submission: { select: { id: true, studentName: true, studentEmail: true } },
-    },
+    include: certificateInclude,
   });
 
 export const updateCertificate = (id, data, tx = prisma) =>
@@ -137,6 +201,14 @@ export const listCertificates = ({ status, search, page = 1, limit = 20 } = {}, 
     skip: (page - 1) * limit,
     take: limit,
     orderBy: { issuedAt: "desc" },
+    include: {
+      emailOutbox: {
+        where: { type: "CERTIFICATE_DELIVERY" },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { status: true, updatedAt: true, lastError: true },
+      },
+    },
   });
 };
 
