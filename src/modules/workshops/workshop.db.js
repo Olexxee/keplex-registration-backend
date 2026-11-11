@@ -50,6 +50,14 @@ export const setParticipantTierActive = (id, active, tx = prisma) => tx.workshop
   where: { id }, data: { active },
 });
 export const createBooking = (data, tx = prisma) => tx.workshopBooking.create({ data });
+export const findGuestBookingByCredentials = (publicReference, accessTokenHash, tx = prisma) =>
+  tx.workshopBooking.findFirst({
+    where: { publicReference, accessTokenHash },
+    include: {
+      offering: { select: { title: true, slug: true, contactEmail: true, contactWhatsApp: true } },
+      participantTier: { select: { label: true, participantCount: true, price: true, currency: true } },
+    },
+  });
 export const listAdminBookings = ({ status, page = 1, limit = 20 } = {}, tx = prisma) =>
   tx.workshopBooking.findMany({
     where: status ? { status } : {},
