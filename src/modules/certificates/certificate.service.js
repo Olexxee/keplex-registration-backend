@@ -9,6 +9,7 @@ import * as db from "./certificate.db.js";
 import {
   createCertificatePdf,
   downloadCertificateDocument,
+  getCertificateDocumentAccessUrl,
   getProofAccessUrl,
   uploadCertificateDocument,
   uploadProofFile,
@@ -273,13 +274,7 @@ export const issueDirectly = async (data, adminId) => {
 
 const withDocumentAccessUrl = (certificate) => ({
   ...certificate,
-  documentAccessUrl: cloudinary.url(certificate.documentPublicId, {
-    resource_type: "raw",
-    type: "authenticated",
-    sign_url: true,
-    secure: true,
-    format: "pdf",
-  }),
+  documentAccessUrl: getCertificateDocumentAccessUrl(certificate),
 });
 
 export const getCertificate = async (id) => {
@@ -311,18 +306,19 @@ export const resendCertificate = async (id) => {
     throw new BadRequestError("A revoked certificate cannot be emailed.");
   }
 
-  const pdfBuffer = await downloadCertificateDocument(certificate.documentPublicId);
   try {
+    const pdfBuffer = await downloadCertificateDocument(certificate);
     await sendCertificateEmail({ certificate, pdfBuffer });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown certificate email failure.";
     try {
       await db.updateCertificate(id, {
-        lastEmailError: error.message.slice(0, 1000),
+        lastEmailError: message.slice(0, 1000),
       });
     } catch (persistenceError) {
       console.error("[certificates] Could not save resend failure:", persistenceError);
     }
-    throw new BadRequestError(`Certificate exists, but the email provider rejected the request: ${error.message}`);
+    throw new BadRequestError(`Certificate email could not be resent: ${message}`);
   }
 
   const emailSentAt = new Date();
