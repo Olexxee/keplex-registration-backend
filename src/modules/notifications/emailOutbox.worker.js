@@ -17,7 +17,7 @@ const retryDelayMs = (attempt) => Math.min(6 * 60 * 60 * 1000, 30 * 1000 * (2 **
 
 const processOne = async () => prisma.$transaction(async (tx) => {
   const lockRows = await tx.$queryRaw`
-    SELECT pg_try_advisory_xact_lock(${ADVISORY_LOCK_NAMESPACE}, ${ADVISORY_LOCK_RESOURCE}) AS "locked"
+    SELECT pg_try_advisory_xact_lock(${ADVISORY_LOCK_NAMESPACE}::integer, ${ADVISORY_LOCK_RESOURCE}::integer) AS "locked"
   `;
   if (!lockRows[0]?.locked) return false;
 
