@@ -91,12 +91,22 @@ const loadArtwork = async () => {
   return readFile(artworkUrl, "utf8");
 };
 
+const fetchFounderSignatureDataUri = () => {
+  const encoded = process.env.CERTIFICATE_SIGNATURE_BASE64?.trim();
+  if (!encoded) throw new Error("CERTIFICATE_SIGNATURE_BASE64 is required before issuing certificates.");
+  const bytes = Buffer.from(encoded, "base64");
+  const magic = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  if (bytes.length < 100 || !bytes.subarray(0, 8).equals(magic)) throw new Error("CERTIFICATE_SIGNATURE_BASE64 must contain a valid PNG image.");
+  if (bytes.length > 2 * 1024 * 1024) throw new Error("The founder signature image must not exceed 2 MB.");
+  return "data:image/png;base64," + bytes.toString("base64");
+};
 export const createCertificateSvg = async ({
   studentName,
   trainingProgramTitle,
   certificateNumber,
   issuedAt,
   logoDataUri = null,
+  signatureDataUri,
   artwork,
 }) => {
   const name = String(studentName ?? "").trim();
@@ -105,6 +115,7 @@ export const createCertificateSvg = async ({
     throw new Error("Student name, programme, certificate number, and issue date are required to render a certificate.");
   }
 
+  if (!signatureDataUri) throw new Error("The approved founder signature is required to render a certificate.");
   const sourceArtwork = artwork ?? await loadArtwork();
   const artworkBody = sourceArtwork.replace(/^\s*<svg[^>]*>/i, "").replace(/<\/svg>\s*$/i, "");
   const date = formatDate(issuedAt);
@@ -126,6 +137,7 @@ export const createCertificateSvg = async ({
   <desc>Official KPX Academy certificate for ${safeName}, awarded for completing ${safeProgramme}.</desc>
   ${artworkBody}
   ${logoMarkup}
+  <image href="${signatureDataUri}" xlink:href="${signatureDataUri}" x="211" y="452" width="105" height="35" preserveAspectRatio="xMidYMid meet"/>
   <g fill="#17324D">
     <text x="186" y="108" font-family="Sora, Arial, sans-serif" font-size="44" font-weight="800" letter-spacing="1.1">CERTIFICATE</text>
     <text x="186" y="141" font-family="Sora, Arial, sans-serif" font-size="20" font-weight="700" letter-spacing=".5" fill="#2A7F7F">OF COMPLETION</text>
@@ -262,7 +274,8 @@ export const wrapJpegInPdf = (jpeg) => {
 export const createCertificatePdf = async (certificate) => {
   const branding = await getSiteBranding();
   const logoDataUri = await fetchLogoDataUri(branding?.logoUrl);
-  const svg = await createCertificateSvg({ ...certificate, logoDataUri });
+  const signatureDataUri = fetchFounderSignatureDataUri();
+  const svg = await createCertificateSvg({ ...certificate, logoDataUri, signatureDataUri });
   const jpeg = await renderSvgToJpeg(svg);
   return wrapJpegInPdf(jpeg);
 };
