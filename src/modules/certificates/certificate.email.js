@@ -128,12 +128,15 @@ export const sendCertificateEmail = async ({ certificate, pdfBuffer, idempotency
     lastError.status = response.status;
     lastError.code = providerError.name;
 
-    // Retry only on rate limit (Resend default is 2 requests/second) and server errors.
+    // Retry only on rate limits and provider/server errors. A 4xx validation
+    // or authorization failure is permanent for this job and needs an admin
+    // correction followed by a deliberate new resend action.
     const retryable = response.status === 429 || response.status >= 500;
+    lastError.permanent = !retryable;
     if (retryable && attempt < MAX_ATTEMPTS) {
       const retryAfter = Number(response.headers.get("retry-after"));
       const delay = Number.isFinite(retryAfter) && retryAfter > 0
-        ? retryAfter * 1000
+        ? Math.min(5000, retryAfter * 1000)
         : 500 * 2 ** (attempt - 1);
       await sleep(delay);
       continue;
