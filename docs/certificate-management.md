@@ -103,7 +103,7 @@ New certificates are rendered entirely by the backend:
 5. The backend wraps that JPEG in a single-page A4 landscape PDF and stores the resulting PDF using the existing authenticated raw-file workflow.
 6. The temporary SVG asset is deleted after rendering, including when rendering fails.
 
-The current output is a high-resolution, single-page raster PDF: the artwork and text are flattened into the page image, so PDF text selection/accessibility is not available yet. The design uses Sora, Inter and Cormorant Garamond font-family declarations with system fallbacks; those font files are not embedded in this phase. Confirm actual glyph rendering and print output against the reference before claiming the visual target is met.
+The output is a high-resolution, single-page raster PDF: the artwork and text are flattened into the page image, so PDF text selection/accessibility is not available yet. The design uses Sora, Inter and Cormorant Garamond font-family declarations with system fallbacks; those font files are not embedded in this phase. Confirm actual glyph rendering and print output against the reference before claiming the visual target is met.
 
 The QR code points to `FRONTEND_URL/certificates?number=<certificate-number>#verify-certificate`. The KPX Academy frontend certificate page consumes the `number` query parameter, prefills the field, and automatically calls the public verification endpoint. The API verification endpoint remains `GET /verify/:certificateNumber`.
 
@@ -127,3 +127,10 @@ npx prisma migrate deploy
 ```
 
 For local development where migrations are normally created locally, inspect the committed SQL migration first, then use your usual migration deployment workflow.
+
+
+### Protected founder signature
+
+The founder signature is supplied to the renderer through the backend-only `CERTIFICATE_SIGNATURE_BASE64` environment variable. The value must be base64-encoded PNG data (maximum decoded size 2 MB). The renderer validates the PNG signature before use and fails issuance if the secret is absent or invalid. The original signature is not committed to the repository, returned by any API, or hosted at a public URL.
+
+The signature is a visible authenticity element only. It is not a cryptographic PDF signature and does not prevent modification of an issued PDF. Cryptographic signing and tamper-evident validation are a separate security phase.
