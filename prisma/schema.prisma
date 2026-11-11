@@ -879,6 +879,19 @@ enum CertificateStatus {
 }
 
 
+model FAQItem {
+  id           String            @id @default(cuid())
+  question     String            @db.VarChar(300)
+  answer       String            @db.Text
+  status       SiteContentStatus @default(DRAFT)
+  displayOrder Int               @default(0)
+  publishedAt  DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([status, displayOrder, publishedAt])
+}
+
 model OrganizationProfile {
   id             String   @id @default("organization-profile")
   organizationName String  @default("KPX Academy")
