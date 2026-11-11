@@ -75,7 +75,7 @@ Returns the certificate number, recipient name, programme title, issue date, and
 3. Only `APPROVED` submissions can be issued.
 4. Direct admin issuance does not require a submission or registration match.
 5. An active certificate for the same email + programme title prevents accidental duplicate issuance.
-6. Certificates are recorded before email delivery. If email fails, the certificate remains issued and can be resent.
+6. Certificate creation and its initial one-recipient email job are saved in one database transaction after the PDF upload. Delivery failure never revokes the issued certificate; the worker retries transient failures, and an admin can create a new resend action after a job reaches DEAD.
 7. Revoked certificates cannot be resent and public verification reports them as invalid.
 8. Proofs and generated PDFs are uploaded to Cloudinary using the authenticated delivery type; admin endpoints return signed access URLs.
 
@@ -92,7 +92,7 @@ Configure these on the backend host and in local `.env`:
 - `EMAIL_OUTBOX_POLL_INTERVAL_MS` — defaults to 5000 milliseconds.
 - `EMAIL_OUTBOX_MAX_ATTEMPTS` — defaults to 8.
 
-If email configuration is missing or delivery fails, issuance still succeeds and records the delivery error. Configure email before production issuance. Each certificate issue/resend action targets exactly one student email address; there is no bulk-recipient mode. Network retries reuse one provider idempotency key, while a later deliberate resend is a distinct send action.
+Certificate issuance requires the PDF renderer and Cloudinary storage to succeed. Email delivery is asynchronous: issuance can succeed and the message remain queued while the worker is unavailable. Configure the Resend sender and enable the worker on the delivery host before production issuance. Each certificate delivery job targets exactly one student email address; there is no bulk-recipient mode. Network retries reuse one provider idempotency key, while a later deliberate resend is a distinct send action. The backend permits at most one PENDING or PROCESSING delivery job per certificate at a time.
 
 
 ## Certificate document rendering
@@ -116,7 +116,7 @@ Certificate email delivery uses the shared PostgreSQL-backed email outbox. Certi
 
 Each job targets exactly one recipient: the email address stored on that certificate. There is no class list or bulk-recipient mode. The admin resend endpoint accepts an `Idempotency-Key` header. The frontend generates a fresh UUID for each deliberate resend click; repeated requests with that same key resolve to the same queue job. A later, deliberate click is a separate action.
 
-The embedded worker processes one job per polling cycle. A PostgreSQL transaction-level advisory lock is held across the full delivery operation, so only one process can send an outbox message at a time, even if more than one application process is running. Provider requests use an idempotency key derived from the persisted outbox job ID, so worker retries reuse the same provider key. This reduces duplicates after a timeout or process failure; it does not guarantee inbox delivery or absolute exactly-once delivery.
+The embedded worker processes one job per polling cycle. A PostgreSQL transaction-level advisory lock is held across the full delivery operation, so only one process can send an outbox message at a time, even if more than one application process is running. The worker also locks the certificate row while checking its status and sending, serializing delivery against revocation. Provider requests use an idempotency key derived from the persisted outbox job ID, so worker retries reuse the same provider key. This reduces duplicates after a timeout or process failure; it does not guarantee inbox delivery or absolute exactly-once delivery.
 
 The latest delivery state is exposed to authenticated certificate admins:
 - `PENDING` — queued for delivery.
