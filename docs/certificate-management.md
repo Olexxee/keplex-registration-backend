@@ -103,7 +103,7 @@ New certificates are rendered entirely by the backend:
 2. It loads the current official logo from the existing Site Branding record. Only HTTPS assets hosted on `res.cloudinary.com` are fetched; an absent or unavailable logo falls back to a text wordmark.
 3. It composes the recipient, programme, issue date, certificate number, QR code and verification link into a data-driven SVG.
 4. The backend uploads the temporary SVG as an authenticated Cloudinary image asset and requests a 3508 × 2480 JPEG transformation (A4 landscape at approximately 300 DPI).
-5. The backend wraps that JPEG in a single-page A4 landscape PDF and stores the resulting PDF using the existing authenticated raw-file workflow.
+5. The backend wraps that JPEG in a single-page A4 landscape PDF and stores the resulting PDF using the existing authenticated raw-file workflow. New documents are tagged with template version `2026-11-reference-v1`; existing documents are tagged `legacy` by the migration and upgraded on their next deliberate delivery.
 6. The temporary SVG asset is deleted after rendering, including when rendering fails.
 
 The output is a high-resolution, single-page raster PDF: the artwork and text are flattened into the page image, so PDF text selection/accessibility is not available yet. The design uses Sora, Inter and Cormorant Garamond font-family declarations with system fallbacks; those font files are not embedded in this phase. Confirm actual glyph rendering and print output against the reference before claiming the visual target is met.
@@ -112,7 +112,7 @@ The QR code points to `FRONTEND_URL/certificates?number=<certificate-number>#ver
 
 ### Email delivery and resending
 
-Certificate email delivery uses the shared PostgreSQL-backed email outbox. Certificate issuance stores the certificate record and its first delivery job in the same database transaction after the PDF has been uploaded. A resend creates one new delivery job for that certificate. The queue payload stores only the certificate reference; the worker retrieves the exact authenticated PDF already stored for the certificate at send time.
+Certificate email delivery uses the shared PostgreSQL-backed email outbox. Certificate issuance stores the certificate record and its first delivery job in the same database transaction after the PDF has been uploaded. A resend creates one new delivery job for that certificate. The queue payload stores only the certificate reference. The worker checks the stored document template version before delivery: current-version PDFs are retrieved as stored, while legacy PDFs are regenerated with the current renderer and uploaded before the email is sent.
 
 Each job targets exactly one recipient: the email address stored on that certificate. There is no class list or bulk-recipient mode. The admin resend endpoint accepts an `Idempotency-Key` header. The frontend generates a fresh UUID for each deliberate resend click; repeated requests with that same key resolve to the same queue job. A later, deliberate click is a separate action.
 
@@ -128,7 +128,7 @@ The latest delivery state is exposed to authenticated certificate admins:
 
 The admin API returns `202 Accepted` when a resend has been queued. A successful issue operation returns the issued certificate plus `emailQueued: true`; the UI reports that the message is queued rather than claiming it has already been sent.
 
-Resending tries the exact secure URL saved at upload time, then builds a new signed raw-asset URL from the stored public ID. The fallback preserves the Cloudinary upload version parsed from the stored trusted URL, ensuring it addresses the same PDF asset version. Raw Cloudinary public IDs already include their file extension, so the URL builder must not append a second extension. Resending never re-renders a certificate.
+Current-version PDFs are resent from the exact secure URL saved at upload time, with a signed raw-asset fallback that preserves the Cloudinary upload version and does not append a duplicate extension. A legacy PDF is regenerated once, immediately before its next queued delivery, using the current renderer. Regeneration preserves the certificate number, recipient, programme title and original issue date; it changes only the stored PDF artwork/template version. This means the next email to an older certificate owner carries the approved new design, rather than silently attaching the legacy PDF.
 
 
 ### Renderer operations
@@ -158,7 +158,7 @@ The signature is a visible authenticity element only. It is not a cryptographic 
 
 ## Certificate email outbox migration
 
-Apply `prisma/migrations/20261111170000_certificate_email_outbox` before deploying the outbox-aware certificate API. It adds the `CERTIFICATE_DELIVERY` outbox type and optional certificate foreign key. No existing training or workshop outbox records are rewritten.
+Apply `prisma/migrations/20261111170000_certificate_email_outbox` before deploying the outbox-aware certificate API. It adds the `CERTIFICATE_DELIVERY` outbox type, optional certificate foreign key, and `Certificate.documentTemplateVersion`. Existing certificates are marked `legacy` so their PDFs are upgraded on the next deliberate delivery. No existing training or workshop outbox records are rewritten.
 
 Deploy with:
 
