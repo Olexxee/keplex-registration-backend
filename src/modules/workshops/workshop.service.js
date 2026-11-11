@@ -177,6 +177,14 @@ export const getGuestBooking = async ({ reference, token }) => {
     updatedAt: booking.updatedAt,
     offering: booking.offering,
     participantTier: booking.participantTier,
+    proposal: booking.proposalPrice == null ? null : {
+      price: booking.proposalPrice,
+      currency: booking.currency,
+      details: booking.proposalDetails,
+      expiresAt: booking.proposalExpiresAt,
+      sentAt: booking.proposalSentAt,
+      respondedAt: booking.proposalRespondedAt,
+    },
     history: booking.history,
   };
 };
@@ -201,7 +209,19 @@ export const updateAdminBooking = async (id, data, actorAdminId) => {
   const statusChanged = Boolean(data.status && data.status !== booking.status);
   const dateChanged = Boolean(data.eventDate
     && new Date(data.eventDate).getTime() !== booking.eventDate.getTime());
+  const proposalFieldsChanged = ["proposalPrice", "proposalDetails", "proposalExpiresAt"]
+    .some((key) => Object.hasOwn(data, key));
 
+  if (data.status === "PROPOSAL_SENT" && statusChanged) {
+    if (data.proposalPrice == null || !data.proposalDetails?.trim() || !data.proposalExpiresAt) {
+      throw new BadRequestError("A proposal requires a final price, proposal details, and an expiry date");
+    }
+    if (new Date(data.proposalExpiresAt) <= new Date()) {
+      throw new BadRequestError("Proposal expiry must be in the future");
+    }
+  } else if (proposalFieldsChanged) {
+    throw new BadRequestError("Proposal terms can only be set when sending a proposal");
+  }
   if (data.customerMessage && !statusChanged && !dateChanged) {
     throw new BadRequestError("A customer message must accompany a status change or reschedule");
   }
@@ -223,4 +243,20 @@ export const updateAdminBooking = async (id, data, actorAdminId) => {
   const latest = await workshopDb.findBookingById(id);
   if (!latest) throw new NotFoundError("Workshop booking not found");
   throw new ConflictError(`Workshop booking changed concurrently (current status: ${latest.status}); refresh before retrying`);
+};
+
+
+export const respondToGuestProposal = async ({ reference, token, decision }) => {
+  const accessTokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const booking = await workshopDb.findGuestBookingForDecision(reference, accessTokenHash);
+  if (!booking) throw new NotFoundError("Workshop booking not found");
+  if (booking.status !== "PROPOSAL_SENT") {
+    throw new ConflictError("This proposal is no longer awaiting a response");
+  }
+  if (!booking.proposalExpiresAt || booking.proposalExpiresAt <= new Date()) {
+    throw new ConflictError("This proposal has expired. Contact KPX Academy for an updated proposal");
+  }
+  const updated = await workshopDb.recordGuestProposalDecision({ bookingId: booking.id, decision });
+  if (!updated) throw new ConflictError("This proposal was already answered or has expired");
+  return { publicReference: updated.publicReference, status: updated.status, proposalRespondedAt: updated.proposalRespondedAt };
 };
