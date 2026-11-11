@@ -168,6 +168,7 @@ export const updateBookingWithHistoryAndNotifications = async ({
             newEventDate: updated.eventDate.toISOString(),
             customerMessage: customerMessage ?? null,
             proposalPrice: updated.proposalPrice?.toString() ?? null,
+            currency: updated.currency,
             proposalDetails: updated.proposalDetails ?? null,
             proposalExpiresAt: updated.proposalExpiresAt?.toISOString() ?? null,
           },
