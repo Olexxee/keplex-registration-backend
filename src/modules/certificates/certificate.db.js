@@ -156,6 +156,21 @@ export const enqueueCertificateResend = async (id, idempotencyKey) =>
       return { certificate, delivery: null, created: false };
     }
 
+    // At most one unsent certificate message may exist at a time. This makes
+    // the one-recipient/one-active-send rule hold across multiple admins and
+    // repeated API calls, not only within one browser mutation.
+    const activeDelivery = await tx.emailOutbox.findFirst({
+      where: {
+        certificateId: id,
+        type: "CERTIFICATE_DELIVERY",
+        status: { in: ["PENDING", "PROCESSING"] },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    if (activeDelivery) {
+      return { certificate, delivery: activeDelivery, created: false };
+    }
+
     const dedupeKey = `certificate:${id}:resend:${idempotencyKey}`;
     const inserted = await tx.emailOutbox.createMany({
       data: [{
