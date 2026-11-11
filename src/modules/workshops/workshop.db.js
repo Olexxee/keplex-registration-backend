@@ -49,8 +49,18 @@ export const updateParticipantTier = (id, data, tx = prisma) => tx.workshopParti
 export const setParticipantTierActive = (id, active, tx = prisma) => tx.workshopParticipantTier.update({
   where: { id }, data: { active },
 });
-export const createBooking = (data, tx = prisma) => tx.workshopBooking.create({ data });
-export const createBookingHistory = (data, tx = prisma) => tx.workshopBookingHistory.create({ data });
+export const createBookingWithInitialHistory = async (data) => prisma.$transaction(async (tx) => {
+  const booking = await tx.workshopBooking.create({ data });
+  await tx.workshopBookingHistory.create({
+    data: {
+      bookingId: booking.id,
+      action: "CREATED",
+      newStatus: booking.status,
+      newEventDate: booking.eventDate,
+    },
+  });
+  return booking;
+});
 export const findGuestBookingByCredentials = (publicReference, accessTokenHash, tx = prisma) =>
   tx.workshopBooking.findFirst({
     where: { publicReference, accessTokenHash },
