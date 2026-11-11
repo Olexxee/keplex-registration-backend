@@ -140,6 +140,12 @@ export const createGuestBooking = async (data) => {
       customerNotes: data.customerNotes ?? null,
       status: "NEW",
     }, tx);
+    await workshopDb.createBookingHistory({
+      bookingId: booking.id,
+      action: "CREATED",
+      newStatus: booking.status,
+      newEventDate: booking.eventDate,
+    }, tx);
     return {
       publicReference: booking.publicReference,
       status: booking.status,
@@ -181,6 +187,7 @@ export const getGuestBooking = async ({ reference, token }) => {
     updatedAt: booking.updatedAt,
     offering: booking.offering,
     participantTier: booking.participantTier,
+    history: booking.history,
   };
 };
 
@@ -192,22 +199,29 @@ export const listAdminBookings = async (query) => {
   return { items, pagination: { page: query.page, limit: query.limit, total } };
 };
 
-export const updateAdminBooking = async (id, data) => {
+export const updateAdminBooking = async (id, data, actorAdminId) => {
   const booking = await workshopDb.findBookingById(id);
   if (!booking) throw new NotFoundError("Workshop booking not found");
 
-  if (!data.status || data.status === booking.status) {
-    return workshopDb.updateBooking(id, data);
-  }
-
-  if (!isWorkshopBookingTransitionAllowed(booking.status, data.status)) {
+  if (data.status && data.status !== booking.status
+    && !isWorkshopBookingTransitionAllowed(booking.status, data.status)) {
     throw new ConflictError(`Workshop booking cannot move from ${booking.status} to ${data.status}`);
   }
 
-  const updated = await workshopDb.updateBookingFromStatus(id, booking.status, data);
+  if (data.eventDate && new Date(data.eventDate) <= new Date()
+    && new Date(data.eventDate).getTime() !== booking.eventDate.getTime()) {
+    throw new BadRequestError("Choose a future event date when rescheduling");
+  }
+
+  const updated = await workshopDb.updateBookingWithHistoryAndNotifications({
+    currentBooking: booking,
+    data,
+    actorAdminId,
+    customerMessage: data.customerMessage,
+  });
   if (updated) return updated;
 
   const latest = await workshopDb.findBookingById(id);
   if (!latest) throw new NotFoundError("Workshop booking not found");
-  throw new ConflictError(`Workshop booking status changed concurrently to ${latest.status}; refresh before retrying`);
+  throw new ConflictError(`Workshop booking changed concurrently (current status: ${latest.status}); refresh before retrying`);
 };
