@@ -204,6 +204,7 @@ model EmailOutbox {
   dedupeKey         String            @unique
   registrationId    String?
   workshopBookingId String?
+  certificateId     String?
   payload           Json
   status            EmailOutboxStatus @default(PENDING)
   attempts          Int               @default(0)
@@ -216,10 +217,12 @@ model EmailOutbox {
   updatedAt         DateTime          @updatedAt
 
   workshopBooking WorkshopBooking? @relation(fields: [workshopBookingId], references: [id], onDelete: Cascade)
+  certificate     Certificate?     @relation(fields: [certificateId], references: [id], onDelete: Cascade)
 
   @@index([status, availableAt])
   @@index([status, lockedAt])
   @@index([workshopBookingId])
+  @@index([certificateId])
 }
 
 // ────────────────────────────────────────────────────────────
@@ -796,6 +799,7 @@ model Resource {
 enum EmailOutboxType {
   TRAINING_TELEGRAM_ACCESS
   WORKSHOP_BOOKING_NOTIFICATION
+  CERTIFICATE_DELIVERY
 }
 
 enum EmailOutboxStatus {
