@@ -684,9 +684,10 @@ model Certificate {
   revokedAt        DateTime?
   revocationReason String?
 
-  documentUrl      String
-  documentPublicId String
-  emailSentAt      DateTime?
+  documentUrl             String
+  documentPublicId        String
+  documentTemplateVersion String   @default("legacy")
+  emailSentAt              DateTime?
   lastEmailError   String?
 
   createdAt DateTime @default(now())
