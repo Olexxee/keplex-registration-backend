@@ -79,3 +79,5 @@ export const guestBookingAccessParamsSchema = z.object({
   reference: z.string().trim().min(8).max(80),
   token: z.string().trim().length(64).regex(/^[a-f0-9]{64}$/i),
 });
+
+export const guestProposalResponseSchema = z.object({ decision: z.enum(["ACCEPT", "DECLINE"]) }).strict();
