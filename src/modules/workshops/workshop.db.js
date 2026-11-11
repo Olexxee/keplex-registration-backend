@@ -92,7 +92,7 @@ const notificationForStatus = (status) => ({
 
 export const updateBookingWithHistoryAndNotifications = async ({
   currentBooking, data, actorAdminId, customerMessage,
-}, tx = prisma) => prisma.$transaction(async (transaction) => {
+}) => prisma.$transaction(async (transaction) => {
   const statusChanged = Boolean(data.status && data.status !== currentBooking.status);
   const dateChanged = Boolean(data.eventDate && new Date(data.eventDate).getTime() !== currentBooking.eventDate.getTime());
   const updateData = {
