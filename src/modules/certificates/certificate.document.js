@@ -310,7 +310,7 @@ const getSignedCertificateUrl = (documentPublicId, version = null) => {
     type: "authenticated",
     sign_url: true,
     secure: true,
-    ...(Number.isSafeInteger(version) && version > 0 ? { version } : {}),
+    ...(typeof version === "string" && /^\d+$/.test(version) ? { version } : {}),
   });
 };
 
