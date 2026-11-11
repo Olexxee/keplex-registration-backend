@@ -59,7 +59,7 @@ const buildText = (certificate) =>
     "KPX Academy",
   ].join("\n");
 
-export const sendCertificateEmail = async ({ certificate, pdfBuffer }) => {
+export const sendCertificateEmail = async ({ certificate, pdfBuffer, idempotencyKey: requestedIdempotencyKey }) => {
   const { apiKey, from, replyTo } = getConfig();
 
   if (!Buffer.isBuffer(pdfBuffer) || pdfBuffer.length === 0) {
@@ -72,7 +72,7 @@ export const sendCertificateEmail = async ({ certificate, pdfBuffer }) => {
 
   // Keep the same key across network retries for this one explicit send action.
   // A later admin resend gets a fresh key and is a separate intentional email.
-  const idempotencyKey = `certificate-email-${certificate.id}-${randomUUID()}`;
+  const idempotencyKey = requestedIdempotencyKey || `certificate-email-${certificate.id}-${randomUUID()}`;
   const payload = JSON.stringify({
     from,
     to: [certificate.studentEmail],
@@ -128,12 +128,15 @@ export const sendCertificateEmail = async ({ certificate, pdfBuffer }) => {
     lastError.status = response.status;
     lastError.code = providerError.name;
 
-    // Retry only on rate limit (Resend default is 2 requests/second) and server errors.
+    // Retry only on rate limits and provider/server errors. A 4xx validation
+    // or authorization failure is permanent for this job and needs an admin
+    // correction followed by a deliberate new resend action.
     const retryable = response.status === 429 || response.status >= 500;
+    lastError.permanent = !retryable;
     if (retryable && attempt < MAX_ATTEMPTS) {
       const retryAfter = Number(response.headers.get("retry-after"));
       const delay = Number.isFinite(retryAfter) && retryAfter > 0
-        ? retryAfter * 1000
+        ? Math.min(5000, retryAfter * 1000)
         : 500 * 2 ** (attempt - 1);
       await sleep(delay);
       continue;

@@ -75,7 +75,7 @@ Returns the certificate number, recipient name, programme title, issue date, and
 3. Only `APPROVED` submissions can be issued.
 4. Direct admin issuance does not require a submission or registration match.
 5. An active certificate for the same email + programme title prevents accidental duplicate issuance.
-6. Certificates are recorded before email delivery. If email fails, the certificate remains issued and can be resent.
+6. Certificate creation and its initial one-recipient email job are saved in one database transaction after the PDF upload. Delivery failure never revokes the issued certificate; the worker retries transient failures, and an admin can create a new resend action after a job reaches DEAD.
 7. Revoked certificates cannot be resent and public verification reports them as invalid.
 8. Proofs and generated PDFs are uploaded to Cloudinary using the authenticated delivery type; admin endpoints return signed access URLs.
 
@@ -88,8 +88,11 @@ Configure these on the backend host and in local `.env`:
 - `CLOUDINARY_API_SECRET`
 - `RESEND_API_KEY`
 - `CERTIFICATE_FROM_EMAIL` — a sender identity verified in Resend
+- `EMAIL_OUTBOX_WORKER_ENABLED` — set to `true` on the Render delivery service; keep `false` for local development to prevent a local process from competing with production email delivery.
+- `EMAIL_OUTBOX_POLL_INTERVAL_MS` — defaults to 5000 milliseconds.
+- `EMAIL_OUTBOX_MAX_ATTEMPTS` — defaults to 8.
 
-If email configuration is missing or delivery fails, issuance still succeeds and records the delivery error. Configure email before production issuance. Each certificate issue/resend action targets exactly one student email address; there is no bulk-recipient mode. Network retries reuse one provider idempotency key, while a later deliberate resend is a distinct send action.
+Certificate issuance requires the PDF renderer and Cloudinary storage to succeed. Email delivery is asynchronous: issuance can succeed and the message remain queued while the worker is unavailable. Configure the Resend sender and enable the worker on the delivery host before production issuance. Each certificate delivery job targets exactly one student email address; there is no bulk-recipient mode. Network retries reuse one provider idempotency key, while a later deliberate resend is a distinct send action. The backend permits at most one PENDING or PROCESSING delivery job per certificate at a time.
 
 
 ## Certificate document rendering
@@ -100,7 +103,7 @@ New certificates are rendered entirely by the backend:
 2. It loads the current official logo from the existing Site Branding record. Only HTTPS assets hosted on `res.cloudinary.com` are fetched; an absent or unavailable logo falls back to a text wordmark.
 3. It composes the recipient, programme, issue date, certificate number, QR code and verification link into a data-driven SVG.
 4. The backend uploads the temporary SVG as an authenticated Cloudinary image asset and requests a 3508 × 2480 JPEG transformation (A4 landscape at approximately 300 DPI).
-5. The backend wraps that JPEG in a single-page A4 landscape PDF and stores the resulting PDF using the existing authenticated raw-file workflow.
+5. The backend wraps that JPEG in a single-page A4 landscape PDF and stores the resulting PDF using the existing authenticated raw-file workflow. New documents are tagged with template version `2026-11-reference-v1`; existing documents are tagged `legacy` by the migration and upgraded on their next deliberate delivery.
 6. The temporary SVG asset is deleted after rendering, including when rendering fails.
 
 The output is a high-resolution, single-page raster PDF: the artwork and text are flattened into the page image, so PDF text selection/accessibility is not available yet. The design uses Sora, Inter and Cormorant Garamond font-family declarations with system fallbacks; those font files are not embedded in this phase. Confirm actual glyph rendering and print output against the reference before claiming the visual target is met.
@@ -109,11 +112,24 @@ The QR code points to `FRONTEND_URL/certificates?number=<certificate-number>#ver
 
 ### Email delivery and resending
 
-Each issue or resend action sends one message to exactly one recipient (`to` contains only the certificate owner). It never sends to a class list or all students. The certificate sender uses a provider idempotency key shared by its internal network retries so a timeout does not accidentally duplicate the same action. A later admin-initiated resend is a new, explicit email action. The shared outbox worker processes one queued recipient per poll cycle to prevent burst delivery.
+Certificate email delivery uses the shared PostgreSQL-backed email outbox. Certificate issuance stores the certificate record and its first delivery job in the same database transaction after the PDF has been uploaded. A resend creates one new delivery job for that certificate. The queue payload stores only the certificate reference. The worker checks the stored document template version before delivery: current-version PDFs are retrieved as stored, while legacy PDFs are regenerated with the current renderer and uploaded before the email is sent.
 
-Resending uses the authenticated PDF already stored for that certificate. The backend first tries the exact secure URL returned by Cloudinary at upload time, then falls back to a newly signed raw-asset URL built from the stored public ID. Raw Cloudinary public IDs already contain their file extension, so the URL builder must not append a separate format extension. Resending does not re-render the certificate; artwork changes apply to newly issued certificates, not silently to previously issued records.
+Each job targets exactly one recipient: the email address stored on that certificate. There is no class list or bulk-recipient mode. The admin resend endpoint accepts an `Idempotency-Key` header. The frontend generates a fresh UUID for each deliberate resend click; repeated requests with that same key resolve to the same queue job. A later, deliberate click is a separate action.
 
-Every resend failure is now persisted as the latest `lastEmailError`, including failures while retrieving or validating the stored PDF (not only failures returned by the email provider). A successful provider acceptance records `emailSentAt` and clears the previous error. This timestamp records provider acceptance, not guaranteed inbox delivery.
+The embedded worker processes one job per polling cycle. A PostgreSQL transaction-level advisory lock is held across the full delivery operation, so only one process can send an outbox message at a time, even if more than one application process is running. The worker also locks the certificate row while checking its status and sending, serializing delivery against revocation. Provider requests use an idempotency key derived from the persisted outbox job ID, so worker retries reuse the same provider key. This reduces duplicates after a timeout or process failure; it does not guarantee inbox delivery or absolute exactly-once delivery.
+
+The latest delivery state is exposed to authenticated certificate admins:
+- `PENDING` — queued for delivery.
+- `PROCESSING` — currently being delivered.
+- `SENT` — Resend accepted the message.
+- `DEAD` — the configured retry limit was reached or the job failed permanently.
+
+`emailSentAt` records the latest successful provider acceptance. It does not prove that the message reached the recipient's inbox. A later failed resend does not erase the timestamp of an earlier accepted email; the latest queue state and error explain the more recent attempt.
+
+The admin API returns `202 Accepted` when a resend has been queued. A successful issue operation returns the issued certificate plus `emailQueued: true`; the UI reports that the message is queued rather than claiming it has already been sent.
+
+Current-version PDFs are resent from the exact secure URL saved at upload time, with a signed raw-asset fallback that preserves the Cloudinary upload version and does not append a duplicate extension. A legacy PDF is regenerated once, immediately before its next queued delivery, using the current renderer. Regeneration preserves the certificate number, recipient, programme title and original issue date; it changes only the stored PDF artwork/template version. This means the next email to an older certificate owner carries the approved new design, rather than silently attaching the legacy PDF.
+
 
 ### Renderer operations
 
@@ -138,3 +154,17 @@ For local development where migrations are normally created locally, inspect the
 The founder signature is supplied to the renderer through the backend-only `CERTIFICATE_SIGNATURE_BASE64` environment variable. The value must be base64-encoded PNG data (maximum decoded size 2 MB). The renderer validates the PNG signature before use and fails issuance if the secret is absent or invalid. The original signature is not committed to the repository, returned by any API, or hosted at a public URL.
 
 The signature is a visible authenticity element only. It is not a cryptographic PDF signature and does not prevent modification of an issued PDF. Cryptographic signing and tamper-evident validation are a separate security phase.
+
+
+## Certificate email outbox migration
+
+Apply `prisma/migrations/20261111170000_certificate_email_outbox` before deploying the outbox-aware certificate API. It adds the `CERTIFICATE_DELIVERY` outbox type, optional certificate foreign key, and `Certificate.documentTemplateVersion`. Existing certificates are marked `legacy` so their PDFs are upgraded on the next deliberate delivery. No existing training or workshop outbox records are rewritten.
+
+Deploy with:
+
+```bash
+npx prisma migrate deploy
+npx prisma generate
+```
+
+After the migration is present in the target database, set `EMAIL_OUTBOX_WORKER_ENABLED=true` on the Render backend service. Leave it `false` in a local environment. The same embedded worker continues to process training and workshop notification jobs as well as certificate delivery.

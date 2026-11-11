@@ -4,6 +4,8 @@ import { cloudinary } from "../../config/cloudinary.js";
 import { getSiteBranding } from "../siteContent/siteContent.service.js";
 import qrcode from "../../lib/vendor/qrcode-generator.mjs";
 
+export const CERTIFICATE_TEMPLATE_VERSION = "2026-11-reference-v1";
+
 const PAGE_WIDTH = 841.89;
 const PAGE_HEIGHT = 595.28;
 const RENDER_WIDTH = 3508;
@@ -267,6 +269,9 @@ export const wrapJpegInPdf = (jpeg) => {
   return Buffer.concat(chunks);
 };
 
+export const isCertificateDocumentCurrent = (certificate) =>
+  certificate?.documentTemplateVersion === CERTIFICATE_TEMPLATE_VERSION;
+
 export const createCertificatePdf = async (certificate) => {
   const branding = await getSiteBranding();
   const logoDataUri = await fetchLogoDataUri(branding?.logoUrl);
@@ -293,26 +298,49 @@ const getTrustedStoredCertificateUrl = (documentUrl) => {
   }
 };
 
-const getSignedCertificateUrl = (documentPublicId) => {
+const getStoredCertificateVersion = (documentUrl) => {
+  const trustedUrl = getTrustedStoredCertificateUrl(documentUrl);
+  if (!trustedUrl) return null;
+  const versionSegment = new URL(trustedUrl).pathname
+    .split("/")
+    .find((segment) => {
+      if (!segment.startsWith("v") || segment.length < 2) return false;
+      const versionNumber = Number(segment.slice(1));
+      return Number.isSafeInteger(versionNumber) && versionNumber > 0;
+    });
+  return versionSegment ? versionSegment.slice(1) : null;
+};
+
+const getSignedCertificateUrl = (documentPublicId, version = null) => {
   if (!documentPublicId) return null;
-  // Cloudinary raw public IDs include the file extension. Do not pass format:
-  // doing so can produce a second extension and a URL that returns 404.
+  // Raw public IDs already include the file extension; do not pass format.
+  // Preserve the upload version so fallback retrieval addresses the exact PDF
+  // version that was saved on the certificate record, not a newer asset.
   return cloudinary.url(documentPublicId, {
     resource_type: "raw",
     type: "authenticated",
     sign_url: true,
     secure: true,
+    ...(typeof version === "string" && /^\d+$/.test(version) ? { version } : {}),
   });
 };
 
-export const getCertificateDocumentAccessUrl = (certificate) =>
-  getTrustedStoredCertificateUrl(certificate.documentUrl) ||
-  getSignedCertificateUrl(certificate.documentPublicId);
+export const getCertificateDocumentAccessUrl = (certificate) => {
+  const storedUrl = getTrustedStoredCertificateUrl(certificate?.documentUrl);
+  return storedUrl || getSignedCertificateUrl(
+    certificate?.documentPublicId,
+    getStoredCertificateVersion(certificate?.documentUrl),
+  );
+};
 
 export const downloadCertificateDocument = async (certificate) => {
+  const storedUrl = getTrustedStoredCertificateUrl(certificate?.documentUrl);
   const urls = [
-    getTrustedStoredCertificateUrl(certificate?.documentUrl),
-    getSignedCertificateUrl(certificate?.documentPublicId),
+    storedUrl,
+    getSignedCertificateUrl(
+      certificate?.documentPublicId,
+      getStoredCertificateVersion(certificate?.documentUrl),
+    ),
   ].filter((url, index, all) => url && all.indexOf(url) === index);
 
   if (!urls.length) throw new Error("Certificate document is not available for resend.");

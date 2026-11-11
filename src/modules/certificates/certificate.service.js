@@ -7,14 +7,13 @@ import {
 import { cloudinary } from "../../config/cloudinary.js";
 import * as db from "./certificate.db.js";
 import {
+  CERTIFICATE_TEMPLATE_VERSION,
   createCertificatePdf,
-  downloadCertificateDocument,
   getCertificateDocumentAccessUrl,
   getProofAccessUrl,
   uploadCertificateDocument,
   uploadProofFile,
 } from "./certificate.document.js";
-import { sendCertificateEmail } from "./certificate.email.js";
 
 const normalizeEmail = (value) => value.trim().toLowerCase();
 const certificateNumber = () =>
@@ -162,9 +161,9 @@ const createAndEmailCertificate = async ({
   });
   const uploadedDocument = await uploadCertificateDocument(pdfBuffer, number);
 
-  let certificate;
+  let created;
   try {
-    certificate = await db.createCertificate({
+    created = await db.createCertificateWithInitialDelivery({
       certificateNumber: number,
       studentName: name,
       studentEmail: email,
@@ -177,6 +176,7 @@ const createAndEmailCertificate = async ({
       status: "ISSUED",
       documentUrl: uploadedDocument.url,
       documentPublicId: uploadedDocument.publicId,
+      documentTemplateVersion: CERTIFICATE_TEMPLATE_VERSION,
     });
   } catch (error) {
     await cloudinary.uploader.destroy(uploadedDocument.publicId, {
@@ -186,46 +186,20 @@ const createAndEmailCertificate = async ({
     throw error;
   }
 
-  let emailSent = false;
-  let emailError = null;
-  let emailStatusPersisted = false;
-  let emailSentAt = null;
-
-  try {
-    await sendCertificateEmail({ certificate, pdfBuffer });
-    emailSent = true;
-    emailSentAt = new Date();
-
-    try {
-      await db.updateCertificate(certificate.id, {
-        emailSentAt,
-        lastEmailError: null,
-      });
-      emailStatusPersisted = true;
-    } catch (persistenceError) {
-      emailError = "Email was accepted by the provider, but its status could not be saved.";
-      console.error("[certificates] Email accepted but certificate status update failed:", persistenceError);
-    }
-  } catch (error) {
-    emailError = error.message;
-    try {
-      await db.updateCertificate(certificate.id, {
-        lastEmailError: error.message.slice(0, 1000),
-      });
-    } catch (persistenceError) {
-      console.error("[certificates] Could not save certificate email failure:", persistenceError);
-    }
-  }
-
+  const { certificate, delivery } = created;
   return {
-    certificate: {
+    certificate: withDeliveryStatus({
       ...certificate,
-      emailSentAt: emailStatusPersisted ? emailSentAt : null,
-      lastEmailError: emailError,
-    },
-    emailSent,
-    emailError,
-    emailStatusPersisted,
+      emailOutbox: [{
+        status: delivery.status,
+        updatedAt: new Date(),
+        lastError: null,
+      }],
+    }),
+    emailSent: false,
+    emailQueued: true,
+    emailError: null,
+    emailStatusPersisted: true,
   };
 };
 
@@ -272,8 +246,19 @@ export const issueDirectly = async (data, adminId) => {
   });
 };
 
+const withDeliveryStatus = (certificate) => {
+  const { emailOutbox = [], ...rest } = certificate;
+  const latestDelivery = emailOutbox[0] ?? null;
+  return {
+    ...rest,
+    emailDeliveryStatus: latestDelivery?.status ?? null,
+    emailDeliveryUpdatedAt: latestDelivery?.updatedAt ?? null,
+    emailDeliveryError: latestDelivery?.lastError ?? null,
+  };
+};
+
 const withDocumentAccessUrl = (certificate) => ({
-  ...certificate,
+  ...withDeliveryStatus(certificate),
   documentAccessUrl: getCertificateDocumentAccessUrl(certificate),
 });
 
@@ -299,44 +284,44 @@ export const listCertificates = async (query) => {
   };
 };
 
-export const resendCertificate = async (id) => {
+export const resendCertificate = async (id, idempotencyKey = randomUUID()) => {
   const certificate = await db.findCertificateById(id);
   if (!certificate) throw new NotFoundError("Certificate not found.");
   if (certificate.status !== "ISSUED") {
     throw new BadRequestError("A revoked certificate cannot be emailed.");
   }
 
-  try {
-    const pdfBuffer = await downloadCertificateDocument(certificate);
-    await sendCertificateEmail({ certificate, pdfBuffer });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown certificate email failure.";
-    try {
-      await db.updateCertificate(id, {
-        lastEmailError: message.slice(0, 1000),
-      });
-    } catch (persistenceError) {
-      console.error("[certificates] Could not save resend failure:", persistenceError);
-    }
-    throw new BadRequestError(`Certificate email could not be resent: ${message}`);
+  const key = String(idempotencyKey || "").trim();
+  if (!/^[A-Za-z0-9._:-]{8,128}$/.test(key)) {
+    throw new BadRequestError("A valid Idempotency-Key is required for certificate resend.");
   }
 
-  const emailSentAt = new Date();
-  try {
-    const updated = await db.updateCertificate(id, {
-      emailSentAt,
-      lastEmailError: null,
-    });
-    return { certificate: updated, emailSent: true, emailStatusPersisted: true, warning: null };
-  } catch (persistenceError) {
-    console.error("[certificates] Email accepted but resend status update failed:", persistenceError);
-    return {
-      certificate,
-      emailSent: true,
-      emailStatusPersisted: false,
-      warning: "The email provider accepted the certificate email, but the delivery status could not be saved.",
-    };
+  const result = await db.enqueueCertificateResend(id, key);
+  if (!result) throw new NotFoundError("Certificate not found.");
+  if (!result.certificate || result.certificate.status !== "ISSUED") {
+    throw new BadRequestError("A revoked certificate cannot be emailed.");
   }
+  if (!result.delivery) {
+    throw new ConflictError("The certificate email could not be queued. Retry with a new resend action.");
+  }
+
+  const emailSent = result.delivery.status === "SENT";
+  const emailQueued = ["PENDING", "PROCESSING"].includes(result.delivery.status);
+  return {
+    certificate: withDeliveryStatus({
+      ...result.certificate,
+      emailOutbox: [{
+        status: result.delivery.status,
+        updatedAt: result.delivery.updatedAt,
+        lastError: result.delivery.lastError,
+      }],
+    }),
+    emailSent,
+    emailQueued,
+    emailError: result.delivery.lastError,
+    deliveryStatus: result.delivery.status,
+    emailStatusPersisted: true,
+  };
 };
 
 export const revokeCertificate = async (id, reason) => {

@@ -26,15 +26,17 @@ export const reviewSubmission = asyncWrapper(async (req, res) => {
   return res.json({ success: true, message: "Submission review saved.", data });
 });
 
+const certificateIssueMessage = (result) => result.emailQueued
+  ? "Certificate issued. The delivery email has been queued for the certificate owner."
+  : result.emailSent
+    ? "Certificate issued and email accepted by the provider."
+    : "Certificate issued, but the delivery email was not queued. Review the delivery status and retry.";
+
 export const issueFromSubmission = asyncWrapper(async (req, res) => {
   const result = await service.issueFromSubmission(req.validated.params.id, req.user.id);
   return res.status(201).json({
     success: true,
-    message: result.emailSent
-      ? result.emailStatusPersisted === false
-        ? "Certificate issued and email accepted, but the email status could not be saved."
-        : "Certificate issued and email accepted by the provider."
-      : "Certificate issued, but email delivery failed. Use resend after checking email configuration.",
+    message: certificateIssueMessage(result),
     data: result,
   });
 });
@@ -43,11 +45,7 @@ export const issueDirectly = asyncWrapper(async (req, res) => {
   const result = await service.issueDirectly(req.validated.body, req.user.id);
   return res.status(201).json({
     success: true,
-    message: result.emailSent
-      ? result.emailStatusPersisted === false
-        ? "Certificate issued and email accepted, but the email status could not be saved."
-        : "Certificate issued and email accepted by the provider."
-      : "Certificate issued, but email delivery failed. Use resend after checking email configuration.",
+    message: certificateIssueMessage(result),
     data: result,
   });
 });
@@ -63,10 +61,15 @@ export const getCertificate = asyncWrapper(async (req, res) => {
 });
 
 export const resendCertificate = asyncWrapper(async (req, res) => {
-  const data = await service.resendCertificate(req.validated.params.id);
-  return res.json({
+  const idempotencyKey = req.get("Idempotency-Key") || undefined;
+  const data = await service.resendCertificate(req.validated.params.id, idempotencyKey);
+  return res.status(data.emailQueued ? 202 : 200).json({
     success: true,
-    message: data.warning || "Certificate email accepted by the provider.",
+    message: data.emailQueued
+      ? "Certificate email queued for the certificate owner."
+      : data.emailSent
+        ? "This resend request was already accepted by the email provider."
+        : "The certificate email delivery request was not queued.",
     data,
   });
 });
