@@ -101,6 +101,8 @@ export const updateBookingWithHistoryAndNotifications = async ({
     ...(Object.hasOwn(data, "adminNotes") ? { adminNotes: data.adminNotes } : {}),
   };
 
+  if (Object.keys(updateData).length === 0) return currentBooking;
+
   const result = await transaction.workshopBooking.updateMany({
     where: { id: currentBooking.id, status: currentBooking.status, updatedAt: currentBooking.updatedAt },
     data: updateData,
