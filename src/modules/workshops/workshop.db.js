@@ -108,6 +108,10 @@ export const updateBookingWithHistoryAndNotifications = async ({
   const updateData = {
     ...(statusChanged ? { status: data.status } : {}),
     ...(dateChanged ? { eventDate: data.eventDate } : {}),
+    ...(Object.hasOwn(data, "proposalPrice") ? { proposalPrice: data.proposalPrice } : {}),
+    ...(Object.hasOwn(data, "proposalDetails") ? { proposalDetails: data.proposalDetails } : {}),
+    ...(Object.hasOwn(data, "proposalExpiresAt") ? { proposalExpiresAt: data.proposalExpiresAt } : {}),
+    ...(statusChanged && data.status === "PROPOSAL_SENT" ? { proposalSentAt: new Date(), proposalRespondedAt: null } : {}),
     ...(Object.hasOwn(data, "adminNotes") ? { adminNotes: data.adminNotes } : {}),
   };
 
@@ -163,6 +167,9 @@ export const updateBookingWithHistoryAndNotifications = async ({
             previousEventDate: currentBooking.eventDate.toISOString(),
             newEventDate: updated.eventDate.toISOString(),
             customerMessage: customerMessage ?? null,
+            proposalPrice: updated.proposalPrice?.toString() ?? null,
+            proposalDetails: updated.proposalDetails ?? null,
+            proposalExpiresAt: updated.proposalExpiresAt?.toISOString() ?? null,
           },
         },
       });
@@ -171,3 +178,36 @@ export const updateBookingWithHistoryAndNotifications = async ({
 
   return updated;
 });
+
+
+export const recordGuestProposalDecision = async ({ bookingId, decision }) => prisma.$transaction(async (transaction) => {
+  const nextStatus = decision === "ACCEPT" ? "ACCEPTED" : "DECLINED";
+  const now = new Date();
+  const updatedCount = await transaction.workshopBooking.updateMany({
+    where: { id: bookingId, status: "PROPOSAL_SENT", proposalExpiresAt: { gt: now } },
+    data: { status: nextStatus, proposalRespondedAt: now },
+  });
+  if (updatedCount.count !== 1) return null;
+
+  const booking = await transaction.workshopBooking.findUnique({ where: { id: bookingId } });
+  await transaction.workshopBookingHistory.create({
+    data: {
+      bookingId,
+      action: "STATUS_CHANGED",
+      previousStatus: "PROPOSAL_SENT",
+      newStatus: nextStatus,
+      previousEventDate: booking.eventDate,
+      newEventDate: booking.eventDate,
+      customerMessage: decision === "ACCEPT"
+        ? "You accepted the workshop proposal."
+        : "You declined the workshop proposal.",
+    },
+  });
+  return booking;
+});
+
+export const findGuestBookingForDecision = (publicReference, accessTokenHash, tx = prisma) =>
+  tx.workshopBooking.findFirst({
+    where: { publicReference, accessTokenHash },
+    select: { id: true, status: true, proposalExpiresAt: true },
+  });
