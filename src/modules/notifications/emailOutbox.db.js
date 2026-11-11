@@ -26,6 +26,7 @@ export const claimNextEmail = async (tx = prisma) => {
       "dedupeKey",
       "registrationId",
       "workshopBookingId",
+      "certificateId",
       "payload",
       "status",
       "attempts",
