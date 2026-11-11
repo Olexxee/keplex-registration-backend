@@ -12,7 +12,7 @@ import {
 
 
 
-const toMinorUnits = (amount) => {
+export const toMinorUnits = (amount) => {
   const value = amount.toString();
 
   const match = value.match(/^(\d+)(?:\.(\d{1,2}))?$/);
