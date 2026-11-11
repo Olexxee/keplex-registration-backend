@@ -3,6 +3,7 @@ import slugify from "slugify";
 import { prisma } from "../../config/prisma.js";
 import { BadRequestError, ConflictError, NotFoundError } from "../../classes/errorClasses.js";
 import * as workshopDb from "./workshop.db.js";
+import { isWorkshopBookingTransitionAllowed } from "./workshop.lifecycle.js";
 
 const makeSlug = (value) => slugify(value, { lower: true, strict: true, trim: true });
 
@@ -194,8 +195,19 @@ export const listAdminBookings = async (query) => {
 export const updateAdminBooking = async (id, data) => {
   const booking = await workshopDb.findBookingById(id);
   if (!booking) throw new NotFoundError("Workshop booking not found");
-  if (data.status === "CONFIRMED" && !["ACCEPTED", "PROPOSAL_SENT", "UNDER_REVIEW", "NEW"].includes(booking.status)) {
-    throw new ConflictError("This booking cannot be confirmed from its current status");
+
+  if (!data.status || data.status === booking.status) {
+    return workshopDb.updateBooking(id, data);
   }
-  return workshopDb.updateBooking(id, data);
+
+  if (!isWorkshopBookingTransitionAllowed(booking.status, data.status)) {
+    throw new ConflictError(`Workshop booking cannot move from ${booking.status} to ${data.status}`);
+  }
+
+  const updated = await workshopDb.updateBookingFromStatus(id, booking.status, data);
+  if (updated) return updated;
+
+  const latest = await workshopDb.findBookingById(id);
+  if (!latest) throw new NotFoundError("Workshop booking not found");
+  throw new ConflictError(`Workshop booking status changed concurrently to ${latest.status}; refresh before retrying`);
 };
