@@ -138,16 +138,12 @@ export const createCertificateSvg = async ({
   ${artworkBody}
   ${logoMarkup}
   <image href="${signatureDataUri}" xlink:href="${signatureDataUri}" x="211" y="452" width="105" height="35" preserveAspectRatio="xMidYMid meet"/>
-  <g fill="#17324D">
-    <text x="186" y="108" font-family="Sora, Arial, sans-serif" font-size="44" font-weight="800" letter-spacing="1.1">CERTIFICATE</text>
-    <text x="186" y="141" font-family="Sora, Arial, sans-serif" font-size="20" font-weight="700" letter-spacing=".5" fill="#2A7F7F">OF COMPLETION</text>
-  </g>
-  <text x="186" y="164" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#55524E">This certificate is proudly presented to:</text>
-  <text x="186" y="225" font-family="'Cormorant Garamond', Georgia, 'Times New Roman', serif" font-size="${nameSize}" fill="#343434" textLength="438" lengthAdjust="spacingAndGlyphs">${safeName}</text>
-  <path d="M186 237 H620" stroke="#252525" stroke-width="1.15" fill="none"/>
-  <circle cx="186" cy="237" r="1.8" fill="#252525"/><circle cx="620" cy="237" r="1.8" fill="#252525"/>
-  <text x="186" y="270" font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#55524E">for successfully completing the</text>
-  <text x="186" y="310" font-family="Sora, Arial, sans-serif" font-size="${programmeSize}" font-weight="800" fill="#17324D" textLength="438" lengthAdjust="spacingAndGlyphs">${safeProgramme}</text>
+  <g text-anchor="middle"><text x="421" y="137" font-family="Sora, Arial, sans-serif" font-size="49" font-weight="800" letter-spacing="1.5" fill="#2455E8">CERTIFICATE</text><text x="421" y="169" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="800" fill="#111111">OF COMPLETION</text></g>
+  <text x="421" y="202" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="16" fill="#111111">This certificate is proudly presented to</text>
+  <text x="421" y="274" text-anchor="middle" font-family="'Cormorant Garamond', Georgia, serif" font-size="${nameSize}" fill="#202020" textLength="560" lengthAdjust="spacingAndGlyphs">${safeName}</text>
+  <path d="M126 287 H716" stroke="#2455E8" stroke-width="1.5" fill="none"/>
+  <text x="421" y="313" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="14" fill="#55524E">for successfully completing the</text>
+  <text x="421" y="348" text-anchor="middle" font-family="'Cormorant Garamond', Georgia, serif" font-size="${programmeSize}" font-weight="700" fill="#9B2163" textLength="570" lengthAdjust="spacingAndGlyphs">${safeProgramme}</text>
   <g font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#55524E">
     <text x="186" y="340">In recognition of the foundational knowledge and practical skills demonstrated in</text>
     <text x="186" y="357">the training programme, including an understanding of its materials, tools and</text>
@@ -163,10 +159,10 @@ export const createCertificateSvg = async ({
     <text x="545" y="501" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700">Date of issue</text>
     <text x="545" y="520" font-family="Georgia, 'Times New Roman', serif" font-size="12" fill="#55524E">${escapeXml(date)}</text>
   </g>
-  <g transform="translate(14 476) scale(${qrScale})">
+  <g transform="translate(417 459) scale(${qrScale})">
     ${qr.markup}
   </g>
-  <text x="15" y="553" font-family="Georgia, 'Times New Roman', serif" font-size="10" font-style="italic" fill="#55524E">Scan to Verify</text>
+  <text x="447" y="535" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="10" font-style="italic" fill="#55524E">Scan to Verify</text>
   <text x="125" y="566" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-style="italic" fill="#55524E">Certificate ID: ${safeCertificateNumber}</text>
   <text x="520" y="566" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-style="italic" fill="#55524E">kpxacademy.com.ng/certificates</text>
   <text x="743" y="548" text-anchor="middle" font-family="cursive" font-size="13" font-style="italic" fill="#5CA39A">Practical Skills.</text>
