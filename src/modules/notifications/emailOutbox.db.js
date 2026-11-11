@@ -20,7 +20,22 @@ export const claimNextEmail = async (tx = prisma) => {
       ORDER BY "availableAt" ASC, "createdAt" ASC
       FOR UPDATE SKIP LOCKED LIMIT 1
     )
-    RETURNING *
+    RETURNING
+      "id",
+      "type",
+      "dedupeKey",
+      "registrationId",
+      "workshopBookingId",
+      "payload",
+      "status",
+      "attempts",
+      "availableAt",
+      "lockedAt",
+      "lastError",
+      "providerMessageId",
+      "sentAt",
+      "createdAt",
+      "updatedAt"
   `;
   return rows[0] ?? null;
 };
