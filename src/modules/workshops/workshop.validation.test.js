@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { guestBookingAccessParamsSchema } from "./workshop.validation.js";
+import { guestBookingAccessParamsSchema, updateBookingSchema } from "./workshop.validation.js";
 
 const validParams = {
   reference: "KPX-WKS-ABC123",
@@ -30,4 +30,25 @@ test("requires the booking public reference with the token", () => {
     guestBookingAccessParamsSchema.safeParse({ token: validParams.token }).success,
     false,
   );
+});
+
+test("accepts valid status and schedule updates with a customer-facing message", () => {
+  assert.equal(updateBookingSchema.safeParse({
+    status: "CONFIRMED",
+    customerMessage: "Your workshop is confirmed.",
+  }).success, true);
+  assert.equal(updateBookingSchema.safeParse({
+    eventDate: "2026-12-01T10:00:00.000Z",
+    customerMessage: "The event date has changed.",
+  }).success, true);
+});
+
+test("rejects empty updates, customer-message-only updates, and unknown fields", () => {
+  assert.equal(updateBookingSchema.safeParse({}).success, false);
+  assert.equal(updateBookingSchema.safeParse({ customerMessage: "Hello" }).success, false);
+  assert.equal(updateBookingSchema.safeParse({ status: "CONFIRMED", isAdmin: true }).success, false);
+});
+
+test("accepts private admin note-only updates", () => {
+  assert.equal(updateBookingSchema.safeParse({ adminNotes: "Call the venue manager." }).success, true);
 });
