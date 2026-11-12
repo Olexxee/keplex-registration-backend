@@ -61,9 +61,57 @@ export const createBookingWithInitialHistory = async (data) => prisma.$transacti
   });
   return booking;
 });
+
+export const findBookingForGuestAccessRequest = (publicReference, tx = prisma) =>
+  tx.workshopBooking.findUnique({
+    where: { publicReference },
+    select: { id: true, publicReference: true, customerName: true, customerEmail: true, workshopTitleSnapshot: true },
+  });
+
+export const createGuestAccessChallenge = async ({ bookingId, challengeTokenHash, codeHash, expiresAt, emailPayload }) =>
+  prisma.$transaction(async (tx) => {
+    await tx.workshopGuestAccessChallenge.updateMany({
+      where: { bookingId, consumedAt: null },
+      data: { consumedAt: new Date() },
+    });
+    const challenge = await tx.workshopGuestAccessChallenge.create({
+      data: { bookingId, challengeTokenHash, codeHash, expiresAt },
+    });
+    await tx.emailOutbox.create({
+      data: {
+        type: "WORKSHOP_BOOKING_ACCESS_CODE",
+        dedupeKey: `workshop-booking-access-code:${challenge.id}`,
+        workshopBookingId: bookingId,
+        payload: emailPayload,
+      },
+    });
+    return challenge;
+  });
+
+export const findGuestAccessChallenge = (publicReference, challengeTokenHash, tx = prisma) =>
+  tx.workshopGuestAccessChallenge.findFirst({
+    where: { challengeTokenHash, consumedAt: null, booking: { publicReference } },
+    select: { id: true, bookingId: true, codeHash: true, expiresAt: true, attempts: true },
+  });
+
+export const incrementGuestAccessChallengeAttempts = (id, tx = prisma) =>
+  tx.workshopGuestAccessChallenge.updateMany({
+    where: { id, consumedAt: null, attempts: { lt: 5 }, expiresAt: { gt: new Date() } },
+    data: { attempts: { increment: 1 } },
+  });
+
+export const consumeGuestAccessChallenge = (id, tx = prisma) =>
+  tx.workshopGuestAccessChallenge.updateMany({
+    where: { id, consumedAt: null, attempts: { lt: 5 }, expiresAt: { gt: new Date() } },
+    data: { consumedAt: new Date() },
+  });
+
+export const createGuestAccessSession = (bookingId, tokenHash, expiresAt, tx = prisma) =>
+  tx.workshopGuestAccessSession.create({ data: { bookingId, tokenHash, expiresAt } });
+
 export const findGuestBookingByCredentials = (publicReference, accessTokenHash, tx = prisma) =>
   tx.workshopBooking.findFirst({
-    where: { publicReference, accessTokenHash },
+    where: { publicReference, OR: [\n      { accessTokenHash },\n      { guestAccessSessions: { some: { tokenHash: accessTokenHash, expiresAt: { gt: new Date() }, revokedAt: null } } },\n    ] },
     include: {
       offering: { select: { title: true, slug: true, contactEmail: true, contactWhatsApp: true } },
       participantTier: { select: { label: true, participantCount: true, price: true, currency: true } },
@@ -209,6 +257,6 @@ export const recordGuestProposalDecision = async ({ bookingId, decision }) => pr
 
 export const findGuestBookingForDecision = (publicReference, accessTokenHash, tx = prisma) =>
   tx.workshopBooking.findFirst({
-    where: { publicReference, accessTokenHash },
+    where: { publicReference, OR: [\n      { accessTokenHash },\n      { guestAccessSessions: { some: { tokenHash: accessTokenHash, expiresAt: { gt: new Date() }, revokedAt: null } } },\n    ] },
     select: { id: true, status: true, proposalExpiresAt: true },
   });
