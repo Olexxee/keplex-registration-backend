@@ -15,6 +15,16 @@ export const createGuestBooking = asyncWrapper(async (req, res) => {
   });
 });
 
+export const requestGuestBookingAccessCode = asyncWrapper(async (req, res) => {
+  const data = await workshopService.requestGuestBookingAccessCode(req.validated.body);
+  return res.json({ success: true, data });
+});
+
+export const verifyGuestBookingAccessCode = asyncWrapper(async (req, res) => {
+  const data = await workshopService.verifyGuestBookingAccessCode(req.validated.body);
+  return res.json({ success: true, data });
+});
+
 export const getGuestBooking = asyncWrapper(async (req, res) => {
   const data = await workshopService.getGuestBooking(req.validated.params);
   return res.json({ success: true, data });
