@@ -9,7 +9,7 @@ import {
 } from "../certificates/certificate.document.js";
 import { sendCertificateEmail } from "../certificates/certificate.email.js";
 import * as outboxDb from "./emailOutbox.db.js";
-import { sendTrainingTelegramAccessEmail, sendWorkshopBookingNotification } from "./emailOutbox.email.js";
+import { sendTrainingTelegramAccessEmail, sendWorkshopBookingNotification, sendWorkshopBookingAccessCodeEmail } from "./emailOutbox.email.js";
 
 const POLL_INTERVAL_MS = Math.max(1000, Number(process.env.EMAIL_OUTBOX_POLL_INTERVAL_MS) || 5000);
 const MAX_ATTEMPTS = Math.max(1, Number(process.env.EMAIL_OUTBOX_MAX_ATTEMPTS) || 8);
