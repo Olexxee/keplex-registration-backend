@@ -37,6 +37,8 @@ const processOne = async () => prisma.$transaction(async (tx) => {
       result = await sendTrainingTelegramAccessEmail({ id: job.id, ...job.payload });
     } else if (job.type === "WORKSHOP_BOOKING_NOTIFICATION") {
       result = await sendWorkshopBookingNotification({ id: job.id, ...job.payload });
+    } else if (job.type === "WORKSHOP_BOOKING_ACCESS_CODE") {
+      result = await sendWorkshopBookingAccessCodeEmail({ id: job.id, ...job.payload });
     } else if (job.type === "CERTIFICATE_DELIVERY") {
       if (!job.certificateId) {
         const error = new Error("Certificate delivery job has no certificate reference.");
