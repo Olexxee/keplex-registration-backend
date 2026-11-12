@@ -106,8 +106,16 @@ export const consumeGuestAccessChallenge = (id, tx = prisma) =>
     data: { consumedAt: new Date() },
   });
 
-export const createGuestAccessSession = (bookingId, tokenHash, expiresAt, tx = prisma) =>
-  tx.workshopGuestAccessSession.create({ data: { bookingId, tokenHash, expiresAt } });
+export const consumeGuestAccessChallengeAndCreateSession = async ({ challengeId, bookingId, tokenHash, expiresAt }) =>
+  prisma.$transaction(async (tx) => {
+    const consumed = await tx.workshopGuestAccessChallenge.updateMany({
+      where: { id: challengeId, consumedAt: null, attempts: { lt: 5 }, expiresAt: { gt: new Date() } },
+      data: { consumedAt: new Date() },
+    });
+    if (consumed.count !== 1) return false;
+    await tx.workshopGuestAccessSession.create({ data: { bookingId, tokenHash, expiresAt } });
+    return true;
+  });
 
 export const findGuestBookingByCredentials = (publicReference, accessTokenHash, tx = prisma) =>
   tx.workshopBooking.findFirst({
