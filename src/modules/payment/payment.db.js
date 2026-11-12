@@ -50,7 +50,7 @@ export const findLatestWorkshopPayment = (workshopBookingId, tx = prisma) => tx.
 
 export const findGuestWorkshopBookingForPayment = (publicReference, accessTokenHash, tx = prisma) =>
   tx.workshopBooking.findFirst({
-    where: { publicReference, accessTokenHash },
+    where: { publicReference, OR: [\n      { accessTokenHash },\n      { guestAccessSessions: { some: { tokenHash: accessTokenHash, expiresAt: { gt: new Date() }, revokedAt: null } } },\n    ] },
     select: {
       id: true,
       publicReference: true,
