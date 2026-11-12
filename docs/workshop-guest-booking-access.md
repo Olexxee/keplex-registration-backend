@@ -1,31 +1,41 @@
 # Workshop guest booking access
 
-## Change
+## Existing private-link access
 
-Guest workshop bookings now receive a cryptographically random 32-byte access token. The API returns the token once at booking creation and persists only its SHA-256 hash. The public booking reference is not an access credential.
+New bookings continue to receive a cryptographically random 32-byte access token. The API returns the token once at booking creation and persists only its SHA-256 hash. The public booking reference is not an access credential.
 
-Guests retrieve a booking with both values:
+The legacy private-link endpoint remains supported:
 
 `GET /api/workshops/bookings/access/:reference/:token`
 
-A missing, malformed, mismatched, or legacy booking credential returns the standard not-found response. The guest response excludes internal admin notes and database identifiers.
+Existing private links therefore continue to work.
+
+## Email-verified booking tracker
+
+Guests can also recover access from the public booking reference without creating an account.
+
+1. Request a code with `POST /api/workshops/bookings/track/request` and `{ "reference": "KPX-WKS-..." }`.
+2. A six-digit code is queued to the email address stored on that booking. The response is deliberately generic so the endpoint does not reveal whether a reference exists.
+3. Verify with `POST /api/workshops/bookings/track/verify` and `{ "reference", "challengeToken", "code" }`.
+4. Successful verification issues a random 32-byte session token valid for two hours. The token is stored only as a SHA-256 hash and is accepted by the existing guest booking, proposal-response, and Paystack initialization endpoints.
+
+Verification codes expire after five minutes, are single-use, and allow at most five attempts. Request and verification endpoints have IP-based rate limits. The code hash is salted with the high-entropy challenge token. The email outbox payload is scrubbed after successful delivery or permanent failure; expired codes are not sent by the worker.
+
+Legacy bookings without an access-token hash are supported by this email-verification flow. The guest response continues to exclude internal admin notes and internal database identifiers.
 
 ## Migration
 
-Migration: `20261111120000_add_workshop_guest_access`
+Migration: `20261112130000_workshop_guest_email_access`
 
-The new `WorkshopBooking.accessTokenHash` column is nullable to preserve existing booking rows. New bookings always receive a unique hash. Legacy bookings without a hash cannot use the guest retrieval endpoint; they remain accessible through the existing admin workspace.
+Apply the migration only after a verified database backup and staging validation:
 
-Apply with `npx prisma migrate deploy`, then regenerate Prisma Client with `npx prisma generate`.
+```bash
+npx prisma migrate deploy
+npx prisma generate
+```
 
-## Security properties
-
-- Token: 32 random bytes, encoded as 64 hexadecimal characters.
-- Storage: SHA-256 hash only; raw token is returned once.
-- Retrieval: requires the exact public reference and matching token hash.
-- Response: no access-token hash, internal admin notes, or internal booking ID.
-- Existing admin endpoints and guest-only booking creation remain unchanged.
+Do not apply this migration manually with ad hoc SQL. The repository owner applies production migrations.
 
 ## Verification
 
-Run `npm test`. The workshop validation tests cover valid credentials, missing references, short tokens, and malformed tokens.
+Run `npm test`. Workshop validation tests cover the reference format, normalization, challenge-token length, and six-digit code format.
