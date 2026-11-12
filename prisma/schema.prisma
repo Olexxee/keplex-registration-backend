@@ -608,12 +608,44 @@ model WorkshopBooking {
   participantTier WorkshopParticipantTier? @relation(fields: [participantTierId], references: [id], onDelete: SetNull)
   history         WorkshopBookingHistory[]
   emailOutbox     EmailOutbox[]
+  guestAccessChallenges WorkshopGuestAccessChallenge[]
+  guestAccessSessions WorkshopGuestAccessSession[]
   payments        Payment[]
 
   @@index([status, createdAt])
   @@index([eventDate])
   @@index([customerEmail])
   @@index([customerWhatsApp])
+}
+
+model WorkshopGuestAccessChallenge {
+  id                String   @id @default(cuid())
+  bookingId         String
+  challengeTokenHash String  @unique
+  codeHash          String
+  expiresAt         DateTime
+  attempts          Int      @default(0)
+  consumedAt        DateTime?
+  createdAt         DateTime @default(now())
+
+  booking WorkshopBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, createdAt])
+  @@index([expiresAt, consumedAt])
+}
+
+model WorkshopGuestAccessSession {
+  id        String   @id @default(cuid())
+  bookingId String
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  booking WorkshopBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, expiresAt])
+  @@index([expiresAt, revokedAt])
 }
 
 model WorkshopBookingHistory {
@@ -802,6 +834,7 @@ model Resource {
 enum EmailOutboxType {
   TRAINING_TELEGRAM_ACCESS
   WORKSHOP_BOOKING_NOTIFICATION
+  WORKSHOP_BOOKING_ACCESS_CODE
   CERTIFICATE_DELIVERY
 }
 
