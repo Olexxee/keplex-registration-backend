@@ -1246,3 +1246,16 @@ Certificate creation and its initial one-recipient email job are persisted atomi
 The shared embedded worker processes one email job per poll. It holds a PostgreSQL transaction-level advisory lock through provider delivery, serializing sends across application processes. Resend requests use a stable idempotency key derived from the outbox job ID. Admin certificate records expose the latest delivery state (`PENDING`, `PROCESSING`, `SENT`, or `DEAD`). The `emailSentAt` field means the provider accepted the message; it does not guarantee inbox delivery.
 
 Apply `prisma/migrations/20261111170000_certificate_email_outbox` with `npx prisma migrate deploy`, then regenerate Prisma Client. Set `EMAIL_OUTBOX_WORKER_ENABLED=true` only on the Render delivery service; keep it false locally. See [certificate management](docs/certificate-management.md) for API semantics and operations.
+
+
+## PostgreSQL connection configuration
+
+The backend supports separate pooled and direct PostgreSQL connection URLs. This is recommended when using Neon:
+
+- `DATABASE_URL` — pooled connection used by the running application and Prisma Client. For Neon, use the hostname containing `-pooler`.
+- `DIRECT_URL` — unpooled/direct connection used by Prisma CLI operations such as migrations and database administration. For Neon, use the hostname without `-pooler`.
+
+Both URLs must target the **same database and branch**. Configure both as backend environment variables in local development and on Render. Never expose either URL in the frontend or commit real credentials.
+
+The Prisma datasource reads `DATABASE_URL` for runtime connections and `DIRECT_URL` for direct CLI connections. Before running migrations or changing production database targets, verify the destination database and complete the approved data-preservation/restore procedure. A connection URL change does not copy data or migrate a database.
+
