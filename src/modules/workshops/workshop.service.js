@@ -202,13 +202,17 @@ export const verifyGuestBookingAccessCode = async ({ reference, challengeToken, 
     await workshopDb.incrementGuestAccessChallengeAttempts(challenge.id);
     throw new BadRequestError("The verification code is invalid or has expired. Request a new code.");
   }
-  const consumed = await workshopDb.consumeGuestAccessChallenge(challenge.id);
-  if (consumed.count !== 1) {
-    throw new BadRequestError("The verification code is invalid or has expired. Request a new code.");
-  }
   const sessionToken = crypto.randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + GUEST_SESSION_TTL_MS);
-  await workshopDb.createGuestAccessSession(challenge.bookingId, hashValue(sessionToken), expiresAt);
+  const sessionCreated = await workshopDb.consumeGuestAccessChallengeAndCreateSession({
+    challengeId: challenge.id,
+    bookingId: challenge.bookingId,
+    tokenHash: hashValue(sessionToken),
+    expiresAt,
+  });
+  if (!sessionCreated) {
+    throw new BadRequestError("The verification code is invalid or has expired. Request a new code.");
+  }
   return {
     accessToken: sessionToken,
     expiresAt,
