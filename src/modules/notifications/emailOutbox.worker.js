@@ -38,6 +38,11 @@ const processOne = async () => prisma.$transaction(async (tx) => {
     } else if (job.type === "WORKSHOP_BOOKING_NOTIFICATION") {
       result = await sendWorkshopBookingNotification({ id: job.id, ...job.payload });
     } else if (job.type === "WORKSHOP_BOOKING_ACCESS_CODE") {
+      if (!job.payload.expiresAt || new Date(job.payload.expiresAt) <= new Date()) {
+        const error = new Error("Workshop verification code expired before delivery.");
+        error.permanent = true;
+        throw error;
+      }
       result = await sendWorkshopBookingAccessCodeEmail({ id: job.id, ...job.payload });
     } else if (job.type === "CERTIFICATE_DELIVERY") {
       if (!job.certificateId) {
@@ -112,6 +117,9 @@ const processOne = async () => prisma.$transaction(async (tx) => {
       throw error;
     }
 
+    if (job.type === "WORKSHOP_BOOKING_ACCESS_CODE") {
+      await tx.emailOutbox.update({ where: { id: job.id }, data: { payload: {} } });
+    }
     await outboxDb.markEmailSent(job.id, result.id ?? null, tx);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -122,6 +130,9 @@ const processOne = async () => prisma.$transaction(async (tx) => {
     }
 
     if (error?.permanent || job.attempts >= MAX_ATTEMPTS) {
+      if (job.type === "WORKSHOP_BOOKING_ACCESS_CODE") {
+        await tx.emailOutbox.update({ where: { id: job.id }, data: { payload: {} } });
+      }
       await outboxDb.markEmailDead(job.id, message, tx);
       console.error("[EmailOutbox] Job moved to DEAD", { jobId: job.id, attempts: job.attempts, error: message });
     } else {
