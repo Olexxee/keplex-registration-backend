@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { guestBookingAccessParamsSchema, guestProposalResponseSchema, updateBookingSchema } from "./workshop.validation.js";
+import { guestBookingAccessParamsSchema, guestProposalResponseSchema, updateBookingSchema, requestGuestBookingAccessCodeSchema, verifyGuestBookingAccessCodeSchema } from "./workshop.validation.js";
 
 const validParams = {
   reference: "KPX-WKS-ABC123",
@@ -81,4 +81,26 @@ test("accepts only explicit customer proposal decisions", () => {
   assert.equal(guestProposalResponseSchema.safeParse({ decision: "DECLINE" }).success, true);
   assert.equal(guestProposalResponseSchema.safeParse({ decision: "CONFIRM" }).success, false);
   assert.equal(guestProposalResponseSchema.safeParse({ decision: "ACCEPT", status: "CONFIRMED" }).success, false);
+});
+
+test("normalizes guest booking tracking references", () => {
+  const result = requestGuestBookingAccessCodeSchema.safeParse({ reference: "kpx-wks-abc123" });
+  assert.equal(result.success, true);
+  if (result.success) assert.equal(result.data.reference, "KPX-WKS-ABC123");
+});
+
+test("rejects malformed tracking references", () => {
+  assert.equal(requestGuestBookingAccessCodeSchema.safeParse({ reference: "not-a-booking" }).success, false);
+});
+
+test("requires a 64-character challenge token and exactly six numeric code digits", () => {
+  const valid = {
+    reference: "KPX-WKS-ABC123",
+    challengeToken: "a".repeat(64),
+    code: "012345",
+  };
+  assert.equal(verifyGuestBookingAccessCodeSchema.safeParse(valid).success, true);
+  assert.equal(verifyGuestBookingAccessCodeSchema.safeParse({ ...valid, code: "12345" }).success, false);
+  assert.equal(verifyGuestBookingAccessCodeSchema.safeParse({ ...valid, code: "12a456" }).success, false);
+  assert.equal(verifyGuestBookingAccessCodeSchema.safeParse({ ...valid, challengeToken: "short" }).success, false);
 });
