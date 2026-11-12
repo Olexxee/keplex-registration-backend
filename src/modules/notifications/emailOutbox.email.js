@@ -151,3 +151,42 @@ export const sendWorkshopBookingNotification = async ({
   }
   return response.json();
 };
+
+export const sendWorkshopBookingAccessCodeEmail = async ({ id, name, email, publicReference, workshopTitle, code, expiresInMinutes = 5 }) => {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.TRANSACTIONAL_FROM_EMAIL || process.env.CERTIFICATE_FROM_EMAIL;
+  const replyTo = process.env.SUPPORT_REPLY_TO_EMAIL;
+  if (!apiKey || !from) throw new Error("Transactional email is not configured.");
+  const safeName = escapeHtml(name);
+  const safeReference = escapeHtml(publicReference);
+  const safeTitle = escapeHtml(workshopTitle);
+  const safeCode = escapeHtml(code);
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    signal: AbortSignal.timeout(15000),
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "Idempotency-Key": `workshop-booking-access-code-${id}`,
+    },
+    body: JSON.stringify({
+      from,
+      to: [email],
+      ...(replyTo ? { reply_to: replyTo } : {}),
+      subject: "Your KPX Academy workshop verification code",
+      text: [
+        `Hello ${name},`, "",
+        `Your verification code for workshop booking ${publicReference} is ${code}.`,
+        `It expires in ${expiresInMinutes} minutes and can only be used once.`,
+        "If you did not request this code, you can ignore this email.",
+        "", "KPX Academy",
+      ].join("\\n"),
+      html: `<div style="font-family:Arial,sans-serif;line-height:1.7;color:#222;max-width:600px;margin:auto"><h2 style="color:#17324D">Verify your workshop booking</h2><p>Hello ${safeName},</p><p>Use this code to access the status of <strong>${safeTitle}</strong> (<strong>${safeReference}</strong>):</p><p style="font-size:32px;font-weight:700;letter-spacing:8px;color:#17324D;padding:16px 0">${safeCode}</p><p>This code expires in ${expiresInMinutes} minutes and can only be used once.</p><p>If you did not request this code, ignore this email.</p><p>Regards,<br/><strong>KPX Academy</strong></p></div>`,
+    }),
+  });
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(`Resend email failed (${response.status}): ${message.slice(0, 500)}`);
+  }
+  return response.json();
+};
