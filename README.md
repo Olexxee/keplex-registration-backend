@@ -1187,11 +1187,11 @@ The admin update endpoint accepts:
 - `customerMessage` — optional text shared with the customer and included in the relevant email.
 - `adminNotes` — private internal notes; never exposed on the guest page.
 
-Customer emails are queued for proposal sent, confirmed, cancelled, and rescheduled events. The outbox insertion and audit write share the booking transaction. The existing embedded Render worker sends these emails through Resend with a stable provider idempotency key and retries failed deliveries. Email failure does not roll back the booking update. The email refers customers to the private status link originally issued at booking creation; it does not reproduce or store the raw access token.
+Customer emails are queued for proposal sent, confirmed, cancelled, and rescheduled events. The outbox insertion and audit write share the booking transaction. The existing embedded Render worker sends these emails through Resend with a stable provider idempotency key and retries failed deliveries. Email failure does not roll back the booking update. The email refers customers to the private status link originally issued at booking creation; it does not reproduce or store the raw access token. Guests can also recover access with a one-time six-digit email code using the public booking reference. Verification codes expire after five minutes, allow five attempts, and issue a two-hour guest session after successful verification. The session authorizes booking retrieval, proposal decisions, and workshop checkout. The outbox worker removes the raw code payload after delivery or permanent failure.
 
 ### Migration
 
-Apply the two migrations `20261111145900_add_workshop_booking_notification_type` and `20261111150000_workshop_booking_history_notifications` with:
+Apply the existing workshop-history migrations and the new `20261112130000_workshop_guest_email_access` migration with:
 
 ```bash
 npx prisma migrate deploy
