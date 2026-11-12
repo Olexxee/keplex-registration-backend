@@ -180,7 +180,7 @@ export const sendWorkshopBookingAccessCodeEmail = async ({ id, name, email, publ
         `It expires in ${expiresInMinutes} minutes and can only be used once.`,
         "If you did not request this code, you can ignore this email.",
         "", "KPX Academy",
-      ].join("\\n"),
+      ].join("\n"),
       html: `<div style="font-family:Arial,sans-serif;line-height:1.7;color:#222;max-width:600px;margin:auto"><h2 style="color:#17324D">Verify your workshop booking</h2><p>Hello ${safeName},</p><p>Use this code to access the status of <strong>${safeTitle}</strong> (<strong>${safeReference}</strong>):</p><p style="font-size:32px;font-weight:700;letter-spacing:8px;color:#17324D;padding:16px 0">${safeCode}</p><p>This code expires in ${expiresInMinutes} minutes and can only be used once.</p><p>If you did not request this code, ignore this email.</p><p>Regards,<br/><strong>KPX Academy</strong></p></div>`,
     }),
   });
