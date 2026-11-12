@@ -165,12 +165,14 @@ export const requestGuestBookingAccessCode = async ({ reference }) => {
   const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
   const booking = await workshopDb.findBookingForGuestAccessRequest(reference);
   if (booking) {
+    const challengeExpiresAt = new Date(Date.now() + GUEST_CODE_TTL_MS);
     await workshopDb.createGuestAccessChallenge({
       bookingId: booking.id,
       challengeTokenHash: hashValue(challengeToken),
       codeHash: hashValue(`${challengeToken}:${code}`),
-      expiresAt: new Date(Date.now() + GUEST_CODE_TTL_MS),
+      expiresAt: challengeExpiresAt,
       emailPayload: {
+        expiresAt: challengeExpiresAt.toISOString(),
         name: booking.customerName,
         email: booking.customerEmail,
         publicReference: booking.publicReference,
