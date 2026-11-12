@@ -81,3 +81,13 @@ export const guestBookingAccessParamsSchema = z.object({
 });
 
 export const guestProposalResponseSchema = z.object({ decision: z.enum(["ACCEPT", "DECLINE"]) }).strict();
+
+export const requestGuestBookingAccessCodeSchema = z.object({
+  reference: z.string().trim().min(8).max(80).regex(/^KPX-WKS-[A-Z0-9-]+$/i),
+}).strict();
+
+export const verifyGuestBookingAccessCodeSchema = z.object({
+  reference: z.string().trim().min(8).max(80).regex(/^KPX-WKS-[A-Z0-9-]+$/i),
+  challengeToken: z.string().trim().length(64).regex(/^[a-f0-9]{64}$/i),
+  code: z.string().trim().length(6).regex(/^\\d{6}$/),
+}).strict();
