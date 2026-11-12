@@ -89,5 +89,5 @@ export const requestGuestBookingAccessCodeSchema = z.object({
 export const verifyGuestBookingAccessCodeSchema = z.object({
   reference: z.string().trim().min(8).max(80).regex(/^KPX-WKS-[A-Z0-9-]+$/i).transform((value) => value.toUpperCase()),
   challengeToken: z.string().trim().length(64).regex(/^[a-f0-9]{64}$/i),
-  code: z.string().trim().length(6).regex(/^\\d{6}$/),
+  code: z.string().trim().length(6).regex(/^\d{6}$/),
 }).strict();
