@@ -111,7 +111,10 @@ export const createGuestAccessSession = (bookingId, tokenHash, expiresAt, tx = p
 
 export const findGuestBookingByCredentials = (publicReference, accessTokenHash, tx = prisma) =>
   tx.workshopBooking.findFirst({
-    where: { publicReference, OR: [\n      { accessTokenHash },\n      { guestAccessSessions: { some: { tokenHash: accessTokenHash, expiresAt: { gt: new Date() }, revokedAt: null } } },\n    ] },
+    where: { publicReference, OR: [
+      { accessTokenHash },
+      { guestAccessSessions: { some: { tokenHash: accessTokenHash, expiresAt: { gt: new Date() }, revokedAt: null } } },
+    ] },
     include: {
       offering: { select: { title: true, slug: true, contactEmail: true, contactWhatsApp: true } },
       participantTier: { select: { label: true, participantCount: true, price: true, currency: true } },
@@ -257,6 +260,9 @@ export const recordGuestProposalDecision = async ({ bookingId, decision }) => pr
 
 export const findGuestBookingForDecision = (publicReference, accessTokenHash, tx = prisma) =>
   tx.workshopBooking.findFirst({
-    where: { publicReference, OR: [\n      { accessTokenHash },\n      { guestAccessSessions: { some: { tokenHash: accessTokenHash, expiresAt: { gt: new Date() }, revokedAt: null } } },\n    ] },
+    where: { publicReference, OR: [
+      { accessTokenHash },
+      { guestAccessSessions: { some: { tokenHash: accessTokenHash, expiresAt: { gt: new Date() }, revokedAt: null } } },
+    ] },
     select: { id: true, status: true, proposalExpiresAt: true },
   });
