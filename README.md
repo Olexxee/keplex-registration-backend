@@ -460,9 +460,11 @@ app.use(helmet());
 
 ## CORS
 
-Cross-origin access is restricted to configured frontend origins.
+Cross-origin access is restricted to the configured frontend origins. The production origins `https://kpxacademy.com.ng` and `https://www.kpxacademy.com.ng` are explicitly allowed, alongside the legacy Vercel frontend and local development origins. `FRONTEND_URL` may contain one or more comma-separated origins; whitespace and trailing slashes are normalized before matching.
 
-Production frontend URLs should be supplied through environment variables rather than hardcoded into the application.
+CORS middleware runs before the global rate limiter. This is intentional: a browser request that receives HTTP 429 must still receive the appropriate CORS headers, otherwise the browser hides the actual rate-limit response and reports a misleading CORS/network failure. Credentialed requests remain restricted to explicit origins; wildcard origins are not used.
+
+A blocked origin is logged as a CORS rejection. Verify the deployed response headers and Render logs after deployment; source configuration alone does not prove the live service is using this version.
 
 ---
 
