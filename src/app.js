@@ -34,7 +34,7 @@ app.use(helmet({
 
 const configuredFrontendOrigins = (process.env.FRONTEND_URL ?? "")
   .split(",")
-  .map((origin) => origin.trim().replace(/\\/+$/, ""))
+  .map((origin) => origin.trim().replace(/\/+$/, ""))
   .filter(Boolean);
 
 const allowedOrigins = new Set([
