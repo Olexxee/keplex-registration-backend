@@ -20,8 +20,6 @@ const app = express();
 
 app.set("trust proxy", 1);
 
-app.use(globalRateLimiter);
-
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -34,42 +32,40 @@ app.use(helmet({
 // CORS
 // ============================================================
 
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
+const configuredFrontendOrigins = (process.env.FRONTEND_URL ?? "")
+  .split(",")
+  .map((origin) => origin.trim().replace(/\\/+$/, ""))
+  .filter(Boolean);
+
+const allowedOrigins = new Set([
+  ...configuredFrontendOrigins,
+  "https://kpxacademy.com.ng",
+  "https://www.kpxacademy.com.ng",
+  "https://keplexregistration.vercel.app",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-  "https://keplexregistration.vercel.app",
-].filter(Boolean);
+]);
 
-console.log("[CORS] Allowed origins:", allowedOrigins);
+console.log("[CORS] Allowed origins:", [...allowedOrigins]);
 
 app.use(
   cors({
     origin(origin, callback) {
-      console.log("[CORS] Incoming origin:", origin ?? "(no Origin header)");
+      // Non-browser clients do not send Origin and are not subject to CORS.
+      if (!origin) return callback(null, true);
 
-      // Allow requests without an Origin header, such as Postman.
-      if (!origin) {
-        console.log("[CORS] Allowed: request has no Origin header");
-        return callback(null, true);
-      }
+      if (allowedOrigins.has(origin)) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
-        console.log("[CORS] Allowed origin:", origin);
-        return callback(null, true);
-      }
-
-      console.error("[CORS] BLOCKED origin:", origin);
-      console.error("[CORS] Expected one of:", allowedOrigins);
-
+      console.error("[CORS] Blocked origin:", origin);
       return callback(new Error(`Not allowed by CORS: ${origin}`));
     },
     credentials: true,
   }),
 );
 
+// CORS must run before rate limiting so browser clients can read 429 responses.
+app.use(globalRateLimiter);
 
-// ============================================================
 // BODY PARSING
 // ============================================================
 
