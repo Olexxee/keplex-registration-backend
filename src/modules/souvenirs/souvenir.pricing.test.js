@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { calculateSouvenirPrice, findMatchingPriceTier, quantityRangesOverlap } from "./souvenir.pricing.js";
+import { calculateSouvenirPrice, findMatchingPriceTier, quantityRangesOverlap, hasTierRangeChanges } from "./souvenir.pricing.js";
 
 test("calculates total from the unit rate for the matching volume tier", () => {
   assert.deepEqual(calculateSouvenirPrice("700.00", 20), {
@@ -54,4 +54,11 @@ test("treats null maximums as open-ended ranges and rejects all open-ended overl
   assert.equal(quantityRangesOverlap({ minQuantity: 101, maxQuantity: null }, { minQuantity: 1, maxQuantity: 100 }), false);
   assert.equal(quantityRangesOverlap({ minQuantity: 20, maxQuantity: 50 }, { minQuantity: 51, maxQuantity: 100 }), false);
   assert.equal(quantityRangesOverlap({ minQuantity: 20, maxQuantity: 50 }, { minQuantity: 50, maxQuantity: 100 }), true);
+});
+
+test("only validates overlap when a tier quantity boundary is changed", () => {
+  assert.equal(hasTierRangeChanges({ unitPrice: 850 }), false);
+  assert.equal(hasTierRangeChanges({ label: "Updated label" }), false);
+  assert.equal(hasTierRangeChanges({ minQuantity: 101 }), true);
+  assert.equal(hasTierRangeChanges({ maxQuantity: null }), true);
 });
