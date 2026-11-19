@@ -419,10 +419,42 @@ model SouvenirEnquiry {
   product SouvenirProduct?       @relation(fields: [productId], references: [id], onDelete: SetNull)
   media   SouvenirEnquiryMedia[]
   quotes  SouvenirQuote[]
+  guestAccessChallenges SouvenirGuestAccessChallenge[]
+  guestAccessSessions SouvenirGuestAccessSession[]
 
   @@index([status, createdAt])
   @@index([customerEmail])
   @@index([customerWhatsApp])
+}
+
+model SouvenirGuestAccessChallenge {
+  id                 String   @id @default(cuid())
+  enquiryId          String
+  challengeTokenHash String   @unique
+  codeHash           String
+  expiresAt          DateTime
+  attempts            Int      @default(0)
+  consumedAt          DateTime?
+  createdAt           DateTime @default(now())
+
+  enquiry SouvenirEnquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+
+  @@index([enquiryId, createdAt])
+  @@index([expiresAt, consumedAt])
+}
+
+model SouvenirGuestAccessSession {
+  id        String   @id @default(cuid())
+  enquiryId String
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  enquiry SouvenirEnquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+
+  @@index([enquiryId, expiresAt])
+  @@index([expiresAt, revokedAt])
 }
 
 model SouvenirEnquiryMedia {
@@ -845,6 +877,7 @@ model Resource {
 
 enum EmailOutboxType {
   TRAINING_TELEGRAM_ACCESS
+  SOUVENIR_NOTIFICATION
   WORKSHOP_BOOKING_NOTIFICATION
   WORKSHOP_BOOKING_ACCESS_CODE
   CERTIFICATE_DELIVERY

@@ -137,8 +137,10 @@ export const paginationQuerySchema = z.object({
 });
 
 export const orderStatusSchema = z.object({
-  status: z.enum(["SUBMITTED", "AWAITING_PAYMENT", "IN_PRODUCTION", "READY", "FULFILLED", "CANCELLED", "REJECTED"]),
+  status: z.enum(["SUBMITTED", "AWAITING_PAYMENT", "IN_PRODUCTION", "READY", "FULFILLED", "CANCELLED", "REJECTED"]).optional(),
   adminNotes: z.string().trim().max(5000).optional().nullable(),
+}).strict().refine((value) => Object.keys(value).length > 0, {
+  message: "Provide a status or admin note update",
 });
 
 export const enquiryAdminUpdateSchema = z.object({
@@ -171,3 +173,19 @@ export const souvenirQuoteResponseSchema = z.object({
   quoteId: z.string().trim().min(1),
   decision: z.enum(["ACCEPT", "DECLINE"]),
 });
+
+
+export const guestEnquiryAccessParamsSchema = z.object({
+  reference: z.string().trim().min(8).max(80).regex(/^KPX-ENQ-[A-Z0-9-]+$/i).transform((value) => value.toUpperCase()),
+  token: z.string().trim().length(64).regex(/^[a-f0-9]{64}$/i),
+});
+
+export const requestGuestSouvenirEnquiryAccessCodeSchema = z.object({
+  reference: z.string().trim().min(8).max(80).regex(/^KPX-ENQ-[A-Z0-9-]+$/i).transform((value) => value.toUpperCase()),
+}).strict();
+
+export const verifyGuestSouvenirEnquiryAccessCodeSchema = z.object({
+  reference: z.string().trim().min(8).max(80).regex(/^KPX-ENQ-[A-Z0-9-]+$/i).transform((value) => value.toUpperCase()),
+  challengeToken: z.string().trim().length(64).regex(/^[a-f0-9]{64}$/i),
+  code: z.string().trim().length(6).regex(/^\d{6}$/),
+}).strict();

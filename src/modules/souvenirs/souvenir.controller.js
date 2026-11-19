@@ -142,6 +142,21 @@ export const getGuestSouvenirEnquiry = asyncWrapper(async (req, res) => {
   return res.json({ success: true, data });
 });
 
+export const requestGuestSouvenirEnquiryAccessCode = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.requestGuestSouvenirEnquiryAccessCode(req.validated.body);
+  return res.json({ success: true, data });
+});
+
+export const verifyGuestSouvenirEnquiryAccessCode = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.verifyGuestSouvenirEnquiryAccessCode(req.validated.body);
+  return res.json({ success: true, data });
+});
+
+export const getGuestSouvenirEnquiryByCredentials = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.getGuestSouvenirEnquiryByCredentials(req.validated.params);
+  return res.json({ success: true, data });
+});
+
 export const listAdminSouvenirEnquiries = asyncWrapper(async (req, res) => {
   const data = await souvenirService.listAdminSouvenirEnquiries(req.validated.query);
   return res.json({ success: true, data });
@@ -191,6 +206,7 @@ export const respondToSouvenirQuote = asyncWrapper(async (req, res) => {
   const data = await souvenirService.respondToSouvenirQuote(
     req.validated.params.token,
     req.validated.body,
+    req.validated.params.reference ?? null,
   );
   return res.json({ success: true, message: "Quotation response recorded", data });
 });

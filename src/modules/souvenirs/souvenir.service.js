@@ -11,6 +11,11 @@ import { buildPricingBands, formatPriceBandLabel, isValidCurrentSchedule } from 
 
 
 
+const enqueueSouvenirEmail = (tx, dedupeKey, payload) => tx.emailOutbox.createMany({
+  data: [{ type: "SOUVENIR_NOTIFICATION", dedupeKey, payload }],
+  skipDuplicates: true,
+});
+
 const makeSlug = (value) => slugify(value, { lower: true, strict: true, trim: true });
 
 const uniqueSlug = async (value, currentId = null) => {
@@ -405,6 +410,19 @@ export const createGuestSouvenirOrder = async (data) => {
     }, tx);
 
     await souvenirDb.createSouvenirOrderColors(created.id, colorSnapshots, tx);
+    await enqueueSouvenirEmail(tx, `souvenir-order-submitted:${created.id}`, {
+      notificationType: "ORDER_SUBMITTED",
+      name: created.customerName,
+      email: created.customerEmail,
+      publicReference: created.publicReference,
+      productName: created.productNameSnapshot,
+      quantity: created.quantity,
+      totalPrice: created.totalPriceSnapshot.toString(),
+      currency: created.currency,
+      accessUrl: process.env.FRONTEND_URL
+        ? `${process.env.FRONTEND_URL.replace(/\/+$/, "")}/souvenirs/orders/access/${accessToken}`
+        : null,
+    });
 
     return souvenirDb.findSouvenirOrderById(created.id, tx);
   });
@@ -492,8 +510,8 @@ export const getAdminSouvenirOrder = async (id) => {
   return stripOrderSecrets(order);
 };
 
-export const updateAdminSouvenirOrder = async (id, data) => {
-  const existing = await souvenirDb.findSouvenirOrderById(id);
+export const updateAdminSouvenirOrder = async (id, data) => prisma.$transaction(async (tx) => {
+  const existing = await souvenirDb.findSouvenirOrderById(id, tx);
   if (!existing) throw new NotFoundError("Souvenir order not found");
   if (data.status && data.status !== existing.status && !allowedOrderTransitions[existing.status].includes(data.status)) {
     throw new ConflictError(`Cannot change a souvenir order from ${existing.status} to ${data.status}`);
@@ -501,9 +519,23 @@ export const updateAdminSouvenirOrder = async (id, data) => {
   const updated = await souvenirDb.updateSouvenirOrder(id, {
     ...(data.status ? { status: data.status } : {}),
     ...(data.adminNotes !== undefined ? { adminNotes: data.adminNotes } : {}),
-  });
+  }, tx);
+  if (data.status && data.status !== existing.status) {
+    await enqueueSouvenirEmail(tx, `souvenir-order-status:${updated.id}:${updated.updatedAt.getTime()}`, {
+      notificationType: "ORDER_STATUS_UPDATED",
+      name: updated.customerName,
+      email: updated.customerEmail,
+      publicReference: updated.publicReference,
+      productName: updated.productNameSnapshot,
+      quantity: updated.quantity,
+      totalPrice: updated.totalPriceSnapshot.toString(),
+      currency: updated.currency,
+      previousStatus: existing.status,
+      newStatus: updated.status,
+    });
+  }
   return stripOrderSecrets(updated);
-};
+});
 
 export const createGuestSouvenirEnquiry = async ({ data, files = [] }) => {
   if (files.length > 10) throw new BadRequestError("A maximum of 10 reference files is allowed");
@@ -550,6 +582,17 @@ export const createGuestSouvenirEnquiry = async ({ data, files = [] }) => {
           tx,
         );
       }
+      await enqueueSouvenirEmail(tx, `souvenir-enquiry-submitted:${created.id}`, {
+        notificationType: "ENQUIRY_SUBMITTED",
+        name: created.customerName,
+        email: created.customerEmail,
+        publicReference: created.publicReference,
+        productName: created.product?.name ?? "Custom souvenir",
+        requestedQuantity: created.requestedQuantity,
+        accessUrl: process.env.FRONTEND_URL
+          ? `${process.env.FRONTEND_URL.replace(/\/+$/, "")}/souvenirs/enquiries/access/${accessToken}`
+          : null,
+      });
       return souvenirDb.findSouvenirEnquiryById(created.id, tx);
     });
 
@@ -607,6 +650,95 @@ export const getGuestSouvenirEnquiry = async (token) => {
   };
 };
 
+const GUEST_ENQUIRY_CODE_TTL_MS = 5 * 60 * 1000;
+const GUEST_ENQUIRY_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+const hashGuestAccessValue = (value) => crypto.createHash("sha256").update(value).digest("hex");
+
+export const requestGuestSouvenirEnquiryAccessCode = async ({ reference }) => {
+  const challengeToken = crypto.randomBytes(32).toString("hex");
+  const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
+  const enquiry = await souvenirDb.findEnquiryForGuestAccessRequest(reference);
+  if (enquiry) {
+    const expiresAt = new Date(Date.now() + GUEST_ENQUIRY_CODE_TTL_MS);
+    await souvenirDb.createSouvenirGuestAccessChallenge({
+      enquiryId: enquiry.id,
+      challengeTokenHash: hashGuestAccessValue(challengeToken),
+      codeHash: hashGuestAccessValue(`${challengeToken}:${code}`),
+      expiresAt,
+      emailPayload: {
+        notificationType: "GUEST_ACCESS_CODE",
+        name: enquiry.customerName,
+        email: enquiry.customerEmail,
+        publicReference: enquiry.publicReference,
+        code,
+        expiresAt: expiresAt.toISOString(),
+        expiresInMinutes: 5,
+      },
+    });
+  }
+  return {
+    challengeToken,
+    expiresInSeconds: GUEST_ENQUIRY_CODE_TTL_MS / 1000,
+    message: "If the enquiry reference is valid, a verification code has been sent to its registered email address.",
+  };
+};
+
+export const verifyGuestSouvenirEnquiryAccessCode = async ({ reference, challengeToken, code }) => {
+  const challenge = await souvenirDb.findSouvenirGuestAccessChallenge(reference, hashGuestAccessValue(challengeToken));
+  if (!challenge || challenge.expiresAt <= new Date() || challenge.attempts >= 5) {
+    throw new BadRequestError("The verification code is invalid or has expired. Request a new code.");
+  }
+  const expected = Buffer.from(challenge.codeHash, "hex");
+  const actual = Buffer.from(hashGuestAccessValue(`${challengeToken}:${code}`), "hex");
+  const valid = expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+  if (!valid) {
+    await souvenirDb.incrementSouvenirGuestAccessChallengeAttempts(challenge.id);
+    throw new BadRequestError("The verification code is invalid or has expired. Request a new code.");
+  }
+  const sessionToken = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + GUEST_ENQUIRY_SESSION_TTL_MS);
+  const created = await souvenirDb.consumeSouvenirGuestAccessChallengeAndCreateSession({
+    challengeId: challenge.id,
+    enquiryId: challenge.enquiryId,
+    tokenHash: hashGuestAccessValue(sessionToken),
+    expiresAt,
+  });
+  if (!created) throw new BadRequestError("The verification code is invalid or has expired. Request a new code.");
+  return {
+    accessToken: sessionToken,
+    expiresAt,
+    accessUrlPath: `/souvenirs/enquiries/access/${encodeURIComponent(reference)}/${sessionToken}`,
+  };
+};
+
+export const getGuestSouvenirEnquiryByCredentials = async ({ reference, token }) => {
+  const enquiry = await souvenirDb.findSouvenirEnquiryByCredentials(reference, hashGuestAccessValue(token));
+  if (!enquiry) throw new NotFoundError("Souvenir enquiry not found");
+  return {
+    publicReference: enquiry.publicReference,
+    customerName: enquiry.customerName,
+    product: enquiry.product,
+    requestedQuantity: enquiry.requestedQuantity,
+    designDescription: enquiry.designDescription,
+    status: enquiry.status,
+    responseMessage: enquiry.responseMessage,
+    media: enquiry.media.map(({ url, mimeType, originalName, bytes }) => ({ url, mimeType, originalName, bytes })),
+    latestQuote: enquiry.quotes
+      .filter((quote) => ["SENT", "ACCEPTED", "DECLINED", "EXPIRED"].includes(quote.status))
+      .sort((a, b) => b.version - a.version)
+      .slice(0, 1)
+      .map((quote) => ({
+        id: quote.id, version: quote.version, status: quote.status, currency: quote.currency,
+        totalAmount: quote.totalAmount, terms: quote.terms, message: quote.message,
+        expiresAt: quote.expiresAt, sentAt: quote.sentAt, respondedAt: quote.respondedAt,
+        items: quote.items,
+        media: quote.media.map(({ url, mimeType, originalName, bytes }) => ({ url, mimeType, originalName, bytes })),
+      }))[0] ?? null,
+    createdAt: enquiry.createdAt,
+    updatedAt: enquiry.updatedAt,
+  };
+};
+
 export const listAdminSouvenirEnquiries = async (query) => {
   const allowed = ["NEW", "UNDER_REVIEW", "RESPONDED", "ACCEPTED", "DECLINED", "CLOSED"];
   if (query.status && !allowed.includes(query.status)) throw new BadRequestError("Invalid souvenir enquiry status");
@@ -623,17 +755,31 @@ export const getAdminSouvenirEnquiry = async (id) => {
   return stripEnquirySecrets(enquiry);
 };
 
-export const updateAdminSouvenirEnquiry = async (id, data) => {
-  const existing = await souvenirDb.findSouvenirEnquiryById(id);
+export const updateAdminSouvenirEnquiry = async (id, data) => prisma.$transaction(async (tx) => {
+  const existing = await souvenirDb.findSouvenirEnquiryById(id, tx);
   if (!existing) throw new NotFoundError("Souvenir enquiry not found");
   const update = { ...data };
   if (data.status === "RESPONDED" || data.responseMessage) {
     update.status = data.status ?? "RESPONDED";
     update.respondedAt = new Date();
   }
-  const updated = await souvenirDb.updateSouvenirEnquiry(id, update);
+  const updated = await souvenirDb.updateSouvenirEnquiry(id, update, tx);
+  const statusChanged = updated.status !== existing.status;
+  const responseChanged = data.responseMessage !== undefined && data.responseMessage !== existing.responseMessage;
+  if (statusChanged || responseChanged) {
+    await enqueueSouvenirEmail(tx, `souvenir-enquiry-update:${updated.id}:${updated.updatedAt.getTime()}`, {
+      notificationType: "ENQUIRY_STATUS_UPDATED",
+      name: updated.customerName,
+      email: updated.customerEmail,
+      publicReference: updated.publicReference,
+      productName: updated.product?.name ?? "Custom souvenir",
+      previousStatus: existing.status,
+      newStatus: updated.status,
+      customerMessage: updated.responseMessage ?? null,
+    });
+  }
   return stripEnquirySecrets(updated);
-};
+});
 
 
 // ────────────────────────────────────────────────────────────
@@ -794,17 +940,35 @@ export const sendAdminSouvenirQuote = async (enquiryId, quoteId) => {
       responseMessage: quote.message ?? enquiry.responseMessage,
       respondedAt: new Date(),
     }, tx);
+    await enqueueSouvenirEmail(tx, `souvenir-quote-sent:${sent.id}`, {
+      notificationType: "QUOTE_SENT",
+      name: enquiry.customerName,
+      email: enquiry.customerEmail,
+      publicReference: enquiry.publicReference,
+      productName: enquiry.product?.name ?? "Custom souvenir",
+      quoteVersion: sent.version,
+      quoteTotal: sent.totalAmount.toString(),
+      currency: sent.currency,
+      quoteMessage: sent.message ?? null,
+      quoteTerms: sent.terms ?? null,
+      quoteExpiresAt: sent.expiresAt?.toISOString() ?? null,
+      quoteItems: sent.items.map((item) => ({ name: item.name, quantity: item.quantity, unitPrice: item.unitPrice.toString(), lineTotal: item.lineTotal.toString() })),
+    });
     return quotePublicView(sent);
   });
 };
 
-export const respondToSouvenirQuote = async (token, { quoteId, decision }) => {
+export const respondToSouvenirQuote = async (token, { quoteId, decision }, reference = null) => {
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-  const enquiry = await souvenirDb.findEnquiryByTokenHash(tokenHash);
+  const enquiry = reference
+    ? await souvenirDb.findSouvenirEnquiryByCredentials(reference, tokenHash)
+    : await souvenirDb.findEnquiryByTokenHash(tokenHash);
   if (!enquiry) throw new NotFoundError("Souvenir enquiry not found");
 
   const result = await prisma.$transaction(async (tx) => {
-    const currentEnquiry = await souvenirDb.findEnquiryByTokenHash(tokenHash, tx);
+    const currentEnquiry = reference
+      ? await souvenirDb.findSouvenirEnquiryByCredentials(reference, tokenHash, tx)
+      : await souvenirDb.findEnquiryByTokenHash(tokenHash, tx);
     if (!currentEnquiry) throw new NotFoundError("Souvenir enquiry not found");
     const quote = await souvenirDb.findSouvenirQuoteByIdAndEnquiry(quoteId, currentEnquiry.id, tx);
     if (!quote) throw new NotFoundError("Souvenir quote not found");
@@ -822,6 +986,16 @@ export const respondToSouvenirQuote = async (token, { quoteId, decision }) => {
       respondedAt: new Date(),
     }, tx);
     await souvenirDb.updateSouvenirEnquiryStatus(currentEnquiry.id, status, tx);
+    await enqueueSouvenirEmail(tx, `souvenir-quote-response:${updatedQuote.id}:${status}`, {
+      notificationType: status === "ACCEPTED" ? "QUOTE_ACCEPTED" : "QUOTE_DECLINED",
+      name: currentEnquiry.customerName,
+      email: currentEnquiry.customerEmail,
+      publicReference: currentEnquiry.publicReference,
+      productName: currentEnquiry.product?.name ?? "Custom souvenir",
+      quoteVersion: updatedQuote.version,
+      quoteTotal: updatedQuote.totalAmount.toString(),
+      currency: updatedQuote.currency,
+    });
     return { expired: false, quote: quotePublicView(updatedQuote), enquiryStatus: status };
   });
 

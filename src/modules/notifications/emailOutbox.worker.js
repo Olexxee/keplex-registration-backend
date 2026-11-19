@@ -9,7 +9,7 @@ import {
 } from "../certificates/certificate.document.js";
 import { sendCertificateEmail } from "../certificates/certificate.email.js";
 import * as outboxDb from "./emailOutbox.db.js";
-import { sendTrainingTelegramAccessEmail, sendWorkshopBookingNotification, sendWorkshopBookingAccessCodeEmail } from "./emailOutbox.email.js";
+import { sendTrainingTelegramAccessEmail, sendWorkshopBookingNotification, sendWorkshopBookingAccessCodeEmail, sendSouvenirNotificationEmail } from "./emailOutbox.email.js";
 
 const POLL_INTERVAL_MS = Math.max(1000, Number(process.env.EMAIL_OUTBOX_POLL_INTERVAL_MS) || 5000);
 const MAX_ATTEMPTS = Math.max(1, Number(process.env.EMAIL_OUTBOX_MAX_ATTEMPTS) || 8);
@@ -37,6 +37,14 @@ const processOne = async () => prisma.$transaction(async (tx) => {
       result = await sendTrainingTelegramAccessEmail({ id: job.id, ...job.payload });
     } else if (job.type === "WORKSHOP_BOOKING_NOTIFICATION") {
       result = await sendWorkshopBookingNotification({ id: job.id, ...job.payload });
+    } else if (job.type === "SOUVENIR_NOTIFICATION") {
+      if (job.payload.notificationType === "GUEST_ACCESS_CODE"
+        && (!job.payload.expiresAt || new Date(job.payload.expiresAt) <= new Date())) {
+        const error = new Error("Souvenir enquiry verification code expired before delivery.");
+        error.permanent = true;
+        throw error;
+      }
+      result = await sendSouvenirNotificationEmail({ id: job.id, ...job.payload });
     } else if (job.type === "WORKSHOP_BOOKING_ACCESS_CODE") {
       if (!job.payload.expiresAt || new Date(job.payload.expiresAt) <= new Date()) {
         const error = new Error("Workshop verification code expired before delivery.");
@@ -117,7 +125,8 @@ const processOne = async () => prisma.$transaction(async (tx) => {
       throw error;
     }
 
-    if (job.type === "WORKSHOP_BOOKING_ACCESS_CODE") {
+    if (job.type === "WORKSHOP_BOOKING_ACCESS_CODE" || job.type === "SOUVENIR_NOTIFICATION") {
+      // Guest access URLs are bearer credentials. Erase the queued payload after successful delivery.
       await tx.emailOutbox.update({ where: { id: job.id }, data: { payload: {} } });
     }
     await outboxDb.markEmailSent(job.id, result.id ?? null, tx);
@@ -130,7 +139,8 @@ const processOne = async () => prisma.$transaction(async (tx) => {
     }
 
     if (error?.permanent || job.attempts >= MAX_ATTEMPTS) {
-      if (job.type === "WORKSHOP_BOOKING_ACCESS_CODE") {
+      if (job.type === "WORKSHOP_BOOKING_ACCESS_CODE" || job.type === "SOUVENIR_NOTIFICATION") {
+        // Never retain one-time codes or guest bearer URLs after a job is terminal.
         await tx.emailOutbox.update({ where: { id: job.id }, data: { payload: {} } });
       }
       await outboxDb.markEmailDead(job.id, message, tx);

@@ -287,6 +287,63 @@ export const findEnquiryByTokenHash = (accessTokenHash, tx = prisma) =>
     include: enquiryInclude,
   });
 
+export const findEnquiryForGuestAccessRequest = (publicReference, tx = prisma) =>
+  tx.souvenirEnquiry.findUnique({
+    where: { publicReference },
+    select: { id: true, publicReference: true, customerName: true, customerEmail: true },
+  });
+
+export const createSouvenirGuestAccessChallenge = async ({ enquiryId, challengeTokenHash, codeHash, expiresAt, emailPayload }) =>
+  prisma.$transaction(async (tx) => {
+    await tx.souvenirGuestAccessChallenge.updateMany({
+      where: { enquiryId, consumedAt: null },
+      data: { consumedAt: new Date() },
+    });
+    const challenge = await tx.souvenirGuestAccessChallenge.create({
+      data: { enquiryId, challengeTokenHash, codeHash, expiresAt },
+    });
+    await tx.emailOutbox.create({
+      data: {
+        type: "SOUVENIR_NOTIFICATION",
+        dedupeKey: `souvenir-access-code:${challenge.id}`,
+        payload: emailPayload,
+      },
+    });
+    return challenge;
+  });
+
+export const findSouvenirGuestAccessChallenge = (publicReference, challengeTokenHash, tx = prisma) =>
+  tx.souvenirGuestAccessChallenge.findFirst({
+    where: { challengeTokenHash, consumedAt: null, enquiry: { publicReference } },
+    select: { id: true, enquiryId: true, codeHash: true, expiresAt: true, attempts: true },
+  });
+
+export const incrementSouvenirGuestAccessChallengeAttempts = (id, tx = prisma) =>
+  tx.souvenirGuestAccessChallenge.updateMany({
+    where: { id, consumedAt: null, attempts: { lt: 5 }, expiresAt: { gt: new Date() } },
+    data: { attempts: { increment: 1 } },
+  });
+
+export const consumeSouvenirGuestAccessChallengeAndCreateSession = async ({ challengeId, enquiryId, tokenHash, expiresAt }) =>
+  prisma.$transaction(async (tx) => {
+    const consumed = await tx.souvenirGuestAccessChallenge.updateMany({
+      where: { id: challengeId, consumedAt: null, attempts: { lt: 5 }, expiresAt: { gt: new Date() } },
+      data: { consumedAt: new Date() },
+    });
+    if (consumed.count !== 1) return false;
+    await tx.souvenirGuestAccessSession.create({ data: { enquiryId, tokenHash, expiresAt } });
+    return true;
+  });
+
+export const findSouvenirEnquiryByCredentials = (publicReference, accessTokenHash, tx = prisma) =>
+  tx.souvenirEnquiry.findFirst({
+    where: { publicReference, OR: [
+      { accessTokenHash },
+      { guestAccessSessions: { some: { tokenHash: accessTokenHash, expiresAt: { gt: new Date() }, revokedAt: null } } },
+    ] },
+    include: enquiryInclude,
+  });
+
 export const listSouvenirEnquiries = (
   { status, page = 1, limit = 20 } = {},
   tx = prisma,
