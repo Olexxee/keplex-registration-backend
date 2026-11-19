@@ -134,7 +134,7 @@ export const setColorOptionActive = async (colorId, active) => {
 
 const lockSouvenirPriceTiers = async (tx, productId) => {
   // Serializes all tier mutations for one product, including overlap checks and writes.
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`souvenir-price-tiers:${productId}`}))`;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`souvenir-price-tiers:${productId}`}))`;
 };
 
 const assertNoTierOverlap = (candidate, tiers, excludedId = null) => {
