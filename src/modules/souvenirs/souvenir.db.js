@@ -128,6 +128,10 @@ export const listPriceTiersForProduct = (productId, tx = prisma) =>
   });
 export const updatePriceTier = (id, data, tx = prisma) =>
   tx.souvenirPriceTier.update({ where: { id }, data });
+export const deletePriceTier = (id, tx = prisma) =>
+  tx.souvenirPriceTier.delete({ where: { id } });
+export const countOrdersForPriceTier = (priceTierId, tx = prisma) =>
+  tx.souvenirOrder.count({ where: { priceTierId } });
 export const createProductMedia = (data, tx = prisma) =>
   tx.souvenirProductMedia.create({ data });
 export const findProductMediaById = (id, tx = prisma) =>
