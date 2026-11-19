@@ -1,4 +1,5 @@
 import express from "express";
+import rateLimit from "express-rate-limit";
 import * as controller from "./souvenir.controller.js";
 import { authMiddleware } from "../../middlewares/authMiddleware.js";
 import { roleMiddleware } from "../../middlewares/roleMiddleware.js";
@@ -18,6 +19,9 @@ import {
   createSouvenirOrderSchema,
   createSouvenirEnquirySchema,
   accessTokenParamsSchema,
+  guestEnquiryAccessParamsSchema,
+  requestGuestSouvenirEnquiryAccessCodeSchema,
+  verifyGuestSouvenirEnquiryAccessCodeSchema,
   paginationQuerySchema,
   orderStatusSchema,
   enquiryAdminUpdateSchema,
@@ -33,6 +37,14 @@ import {
 
 const router = express.Router();
 const admin = [authMiddleware, roleMiddleware("ADMIN", "SUPER_ADMIN")];
+const guestAccessRequestLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, limit: 5, standardHeaders: "draft-8", legacyHeaders: false,
+  message: { success: false, message: "Too many access requests. Try again later." },
+});
+const guestAccessVerifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: "draft-8", legacyHeaders: false,
+  message: { success: false, message: "Too many verification attempts. Try again later." },
+});
 
 // Guest order and custom-design enquiry routes.
 router.post("/orders", validateBody(createSouvenirOrderSchema), controller.createGuestSouvenirOrder);
@@ -40,6 +52,9 @@ router.get("/orders/access/:token", validateParams(accessTokenParamsSchema), con
 router.post("/orders/access/:token/payment", validateParams(accessTokenParamsSchema), controller.retryGuestSouvenirPayment);
 router.post("/enquiries", uploadMultipleReferenceMedia, validateBody(createSouvenirEnquirySchema), controller.createGuestSouvenirEnquiry);
 router.get("/enquiries/access/:token", validateParams(accessTokenParamsSchema), controller.getGuestSouvenirEnquiry);
+router.post("/enquiries/track/request", guestAccessRequestLimiter, validateBody(requestGuestSouvenirEnquiryAccessCodeSchema), controller.requestGuestSouvenirEnquiryAccessCode);
+router.post("/enquiries/track/verify", guestAccessVerifyLimiter, validateBody(verifyGuestSouvenirEnquiryAccessCodeSchema), controller.verifyGuestSouvenirEnquiryAccessCode);
+router.get("/enquiries/access/:reference/:token", validateParams(guestEnquiryAccessParamsSchema), controller.getGuestSouvenirEnquiryByCredentials);
 router.post("/enquiries/access/:token/quote-response", validateParams(accessTokenParamsSchema), validateBody(souvenirQuoteResponseSchema), controller.respondToSouvenirQuote);
 
 // Admin transaction handling. These static routes must precede /:slug.
