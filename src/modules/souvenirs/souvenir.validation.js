@@ -53,7 +53,7 @@ export const pricingScheduleSchema = z.object({
   bands: z.array(z.object({
     minQuantity: z.coerce.number().int().min(1).max(100000),
     unitPrice: z.union([z.string(), z.number()]).transform((value) => String(value)).refine(
-      (value) => /^\\d+(?:\\.\\d{1,2})?$/.test(value) && Number(value) > 0 && Number(value) <= 9999999999.99,
+      (value) => /^\d+(?:\.\d{1,2})?$/.test(value) && Number(value) > 0 && Number(value) <= 9999999999.99,
       "Unit price must be greater than zero with at most two decimal places",
     ),
   })).min(1).max(50),
