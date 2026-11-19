@@ -47,3 +47,11 @@ test("does not match unpriced legacy tiers and detects inclusive overlaps", () =
   assert.equal(quantityRangesOverlap({ minQuantity: 1, maxQuantity: 9 }, { minQuantity: 10, maxQuantity: 20 }), false);
   assert.equal(quantityRangesOverlap({ minQuantity: 20, maxQuantity: null }, { minQuantity: 1, maxQuantity: 19 }), false);
 });
+
+test("treats null maximums as open-ended ranges and rejects all open-ended overlaps", () => {
+  assert.equal(quantityRangesOverlap({ minQuantity: 101, maxQuantity: null }, { minQuantity: 101, maxQuantity: null }), true);
+  assert.equal(quantityRangesOverlap({ minQuantity: 101, maxQuantity: null }, { minQuantity: 150, maxQuantity: 300 }), true);
+  assert.equal(quantityRangesOverlap({ minQuantity: 101, maxQuantity: null }, { minQuantity: 1, maxQuantity: 100 }), false);
+  assert.equal(quantityRangesOverlap({ minQuantity: 20, maxQuantity: 50 }, { minQuantity: 51, maxQuantity: 100 }), false);
+  assert.equal(quantityRangesOverlap({ minQuantity: 20, maxQuantity: 50 }, { minQuantity: 50, maxQuantity: 100 }), true);
+});
