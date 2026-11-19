@@ -38,6 +38,12 @@ const processOne = async () => prisma.$transaction(async (tx) => {
     } else if (job.type === "WORKSHOP_BOOKING_NOTIFICATION") {
       result = await sendWorkshopBookingNotification({ id: job.id, ...job.payload });
     } else if (job.type === "SOUVENIR_NOTIFICATION") {
+      if (job.payload.notificationType === "GUEST_ACCESS_CODE"
+        && (!job.payload.expiresAt || new Date(job.payload.expiresAt) <= new Date())) {
+        const error = new Error("Souvenir enquiry verification code expired before delivery.");
+        error.permanent = true;
+        throw error;
+      }
       result = await sendSouvenirNotificationEmail({ id: job.id, ...job.payload });
     } else if (job.type === "WORKSHOP_BOOKING_ACCESS_CODE") {
       if (!job.payload.expiresAt || new Date(job.payload.expiresAt) <= new Date()) {
