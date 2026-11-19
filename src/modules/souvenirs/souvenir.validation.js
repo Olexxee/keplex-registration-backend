@@ -7,7 +7,7 @@ const hexColor = z.string().trim().regex(/^#[0-9A-Fa-f]{6}$/, "Colour must be a 
 const priceTierFields = z.object({
   label: z.string().trim().min(1).max(120),
   minQuantity: z.coerce.number().int().min(1),
-  maxQuantity: z.coerce.number().int().min(1).optional().nullable(),
+  maxQuantity: z.coerce.number().int().min(1),
   unitPrice: z.coerce.number().positive().max(9999999999.99),
   currency: z
     .string()
@@ -40,8 +40,7 @@ export const createColorOptionSchema = z.object({
 });
 
 export const createPriceTierSchema = priceTierFields.refine(
-  (value) =>
-    value.maxQuantity == null || value.maxQuantity >= value.minQuantity,
+  (value) => value.maxQuantity >= value.minQuantity,
   {
     message:
       "Maximum quantity must be greater than or equal to minimum quantity",
@@ -53,8 +52,8 @@ export const updatePriceTierSchema = priceTierFields
   .partial()
   .refine(
     (value) =>
-      value.maxQuantity == null ||
-      value.minQuantity == null ||
+      value.maxQuantity === undefined ||
+      value.minQuantity === undefined ||
       value.maxQuantity >= value.minQuantity,
     {
       message:
