@@ -11,6 +11,11 @@ import { buildPricingBands, formatPriceBandLabel, isValidCurrentSchedule } from 
 
 
 
+const enqueueSouvenirEmail = (tx, dedupeKey, payload) => tx.emailOutbox.createMany({
+  data: [{ type: "SOUVENIR_NOTIFICATION", dedupeKey, payload }],
+  skipDuplicates: true,
+});
+
 const makeSlug = (value) => slugify(value, { lower: true, strict: true, trim: true });
 
 const uniqueSlug = async (value, currentId = null) => {
@@ -405,6 +410,19 @@ export const createGuestSouvenirOrder = async (data) => {
     }, tx);
 
     await souvenirDb.createSouvenirOrderColors(created.id, colorSnapshots, tx);
+    await enqueueSouvenirEmail(tx, `souvenir-order-submitted:${created.id}`, {
+      notificationType: "ORDER_SUBMITTED",
+      name: created.customerName,
+      email: created.customerEmail,
+      publicReference: created.publicReference,
+      productName: created.productNameSnapshot,
+      quantity: created.quantity,
+      totalPrice: created.totalPriceSnapshot.toString(),
+      currency: created.currency,
+      accessUrl: process.env.FRONTEND_URL
+        ? `${process.env.FRONTEND_URL.replace(/\\/+$/, "")}/souvenirs/orders/access/${accessToken}`
+        : null,
+    });
 
     return souvenirDb.findSouvenirOrderById(created.id, tx);
   });
@@ -492,8 +510,8 @@ export const getAdminSouvenirOrder = async (id) => {
   return stripOrderSecrets(order);
 };
 
-export const updateAdminSouvenirOrder = async (id, data) => {
-  const existing = await souvenirDb.findSouvenirOrderById(id);
+export const updateAdminSouvenirOrder = async (id, data) => prisma.$transaction(async (tx) => {
+  const existing = await souvenirDb.findSouvenirOrderById(id, tx);
   if (!existing) throw new NotFoundError("Souvenir order not found");
   if (data.status && data.status !== existing.status && !allowedOrderTransitions[existing.status].includes(data.status)) {
     throw new ConflictError(`Cannot change a souvenir order from ${existing.status} to ${data.status}`);
@@ -501,9 +519,23 @@ export const updateAdminSouvenirOrder = async (id, data) => {
   const updated = await souvenirDb.updateSouvenirOrder(id, {
     ...(data.status ? { status: data.status } : {}),
     ...(data.adminNotes !== undefined ? { adminNotes: data.adminNotes } : {}),
-  });
+  }, tx);
+  if (data.status && data.status !== existing.status) {
+    await enqueueSouvenirEmail(tx, `souvenir-order-status:${updated.id}:${updated.updatedAt.getTime()}`, {
+      notificationType: "ORDER_STATUS_UPDATED",
+      name: updated.customerName,
+      email: updated.customerEmail,
+      publicReference: updated.publicReference,
+      productName: updated.productNameSnapshot,
+      quantity: updated.quantity,
+      totalPrice: updated.totalPriceSnapshot.toString(),
+      currency: updated.currency,
+      previousStatus: existing.status,
+      newStatus: updated.status,
+    });
+  }
   return stripOrderSecrets(updated);
-};
+});
 
 export const createGuestSouvenirEnquiry = async ({ data, files = [] }) => {
   if (files.length > 10) throw new BadRequestError("A maximum of 10 reference files is allowed");
@@ -550,6 +582,17 @@ export const createGuestSouvenirEnquiry = async ({ data, files = [] }) => {
           tx,
         );
       }
+      await enqueueSouvenirEmail(tx, `souvenir-enquiry-submitted:${created.id}`, {
+        notificationType: "ENQUIRY_SUBMITTED",
+        name: created.customerName,
+        email: created.customerEmail,
+        publicReference: created.publicReference,
+        productName: created.product?.name ?? "Custom souvenir",
+        requestedQuantity: created.requestedQuantity,
+        accessUrl: process.env.FRONTEND_URL
+          ? `${process.env.FRONTEND_URL.replace(/\\/+$/, "")}/souvenirs/enquiries/access/${accessToken}`
+          : null,
+      });
       return souvenirDb.findSouvenirEnquiryById(created.id, tx);
     });
 
@@ -623,17 +666,31 @@ export const getAdminSouvenirEnquiry = async (id) => {
   return stripEnquirySecrets(enquiry);
 };
 
-export const updateAdminSouvenirEnquiry = async (id, data) => {
-  const existing = await souvenirDb.findSouvenirEnquiryById(id);
+export const updateAdminSouvenirEnquiry = async (id, data) => prisma.$transaction(async (tx) => {
+  const existing = await souvenirDb.findSouvenirEnquiryById(id, tx);
   if (!existing) throw new NotFoundError("Souvenir enquiry not found");
   const update = { ...data };
   if (data.status === "RESPONDED" || data.responseMessage) {
     update.status = data.status ?? "RESPONDED";
     update.respondedAt = new Date();
   }
-  const updated = await souvenirDb.updateSouvenirEnquiry(id, update);
+  const updated = await souvenirDb.updateSouvenirEnquiry(id, update, tx);
+  const statusChanged = updated.status !== existing.status;
+  const responseChanged = data.responseMessage !== undefined && data.responseMessage !== existing.responseMessage;
+  if (statusChanged || responseChanged) {
+    await enqueueSouvenirEmail(tx, `souvenir-enquiry-update:${updated.id}:${updated.updatedAt.getTime()}`, {
+      notificationType: "ENQUIRY_STATUS_UPDATED",
+      name: updated.customerName,
+      email: updated.customerEmail,
+      publicReference: updated.publicReference,
+      productName: updated.product?.name ?? "Custom souvenir",
+      previousStatus: existing.status,
+      newStatus: updated.status,
+      customerMessage: updated.responseMessage ?? null,
+    });
+  }
   return stripEnquirySecrets(updated);
-};
+});
 
 
 // ────────────────────────────────────────────────────────────
@@ -794,6 +851,20 @@ export const sendAdminSouvenirQuote = async (enquiryId, quoteId) => {
       responseMessage: quote.message ?? enquiry.responseMessage,
       respondedAt: new Date(),
     }, tx);
+    await enqueueSouvenirEmail(tx, `souvenir-quote-sent:${sent.id}`, {
+      notificationType: "QUOTE_SENT",
+      name: enquiry.customerName,
+      email: enquiry.customerEmail,
+      publicReference: enquiry.publicReference,
+      productName: enquiry.product?.name ?? "Custom souvenir",
+      quoteVersion: sent.version,
+      quoteTotal: sent.totalAmount.toString(),
+      currency: sent.currency,
+      quoteMessage: sent.message ?? null,
+      quoteTerms: sent.terms ?? null,
+      quoteExpiresAt: sent.expiresAt?.toISOString() ?? null,
+      quoteItems: sent.items.map((item) => ({ name: item.name, quantity: item.quantity, unitPrice: item.unitPrice.toString(), lineTotal: item.lineTotal.toString() })),
+    });
     return quotePublicView(sent);
   });
 };
@@ -822,6 +893,16 @@ export const respondToSouvenirQuote = async (token, { quoteId, decision }) => {
       respondedAt: new Date(),
     }, tx);
     await souvenirDb.updateSouvenirEnquiryStatus(currentEnquiry.id, status, tx);
+    await enqueueSouvenirEmail(tx, `souvenir-quote-response:${updatedQuote.id}:${status}`, {
+      notificationType: status === "ACCEPTED" ? "QUOTE_ACCEPTED" : "QUOTE_DECLINED",
+      name: currentEnquiry.customerName,
+      email: currentEnquiry.customerEmail,
+      publicReference: currentEnquiry.publicReference,
+      productName: currentEnquiry.product?.name ?? "Custom souvenir",
+      quoteVersion: updatedQuote.version,
+      quoteTotal: updatedQuote.totalAmount.toString(),
+      currency: updatedQuote.currency,
+    });
     return { expired: false, quote: quotePublicView(updatedQuote), enquiryStatus: status };
   });
 
