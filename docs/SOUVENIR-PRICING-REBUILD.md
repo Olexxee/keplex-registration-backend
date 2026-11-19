@@ -294,8 +294,8 @@ Implementation is split into separate PRs per repository/phase. The user reviews
 - [x] Root cause of the `20-50` versus `20+` conflict identified.
 - [x] Target schedule-level replacement architecture defined.
 - [x] Data preservation and migration strategy defined.
-- [ ] Specification merged.
-- [ ] Schema/migration implemented and rehearsed.
+- [x] Specification merged.
+- [ ] Schema foundation and expand-only migration implemented; read-only preflight supplied; rehearsal pending.
 - [ ] Backend API and tests implemented.
 - [ ] Frontend schedule editor implemented.
 - [ ] Public/order flow regression passed.
