@@ -137,8 +137,10 @@ export const paginationQuerySchema = z.object({
 });
 
 export const orderStatusSchema = z.object({
-  status: z.enum(["SUBMITTED", "AWAITING_PAYMENT", "IN_PRODUCTION", "READY", "FULFILLED", "CANCELLED", "REJECTED"]),
+  status: z.enum(["SUBMITTED", "AWAITING_PAYMENT", "IN_PRODUCTION", "READY", "FULFILLED", "CANCELLED", "REJECTED"]).optional(),
   adminNotes: z.string().trim().max(5000).optional().nullable(),
+}).strict().refine((value) => Object.keys(value).length > 0, {
+  message: "Provide a status or admin note update",
 });
 
 export const enquiryAdminUpdateSchema = z.object({
