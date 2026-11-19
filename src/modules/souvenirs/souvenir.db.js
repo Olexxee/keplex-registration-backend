@@ -9,7 +9,7 @@ const publicInclude = {
     ],
   },
   colorOptions: {
-    where: { active: true, archivedAt: null, priceTiers: { some: { isCurrent: true, unitPrice: { not: null } } } },
+    where: { active: true },
     orderBy: [
       { displayOrder: "asc" },
       { name: "asc" },
@@ -48,7 +48,7 @@ const adminInclude = {
 
 export const listPublicProducts = (tx = prisma) =>
   tx.souvenirProduct.findMany({
-    where: { active: true },
+    where: { active: true, archivedAt: null, priceTiers: { some: { isCurrent: true, unitPrice: { not: null } } } },
     orderBy: [
       { featured: "desc" },
       { displayOrder: "asc" },
