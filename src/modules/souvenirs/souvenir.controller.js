@@ -206,6 +206,7 @@ export const respondToSouvenirQuote = asyncWrapper(async (req, res) => {
   const data = await souvenirService.respondToSouvenirQuote(
     req.validated.params.token,
     req.validated.body,
+    req.validated.params.reference ?? null,
   );
   return res.json({ success: true, message: "Quotation response recorded", data });
 });
