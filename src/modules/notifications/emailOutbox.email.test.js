@@ -140,3 +140,61 @@ test("includes final price, proposal details and expiry in proposal notification
   assert.ok(request.html.includes("Proposal details"));
   assert.ok(request.html.includes("Two-day workshop including materials."));
 });
+
+
+test("sends souvenir submission acknowledgements with a private tracking link and stable idempotency", async (t) => {
+  const previous = { key: process.env.RESEND_API_KEY, from: process.env.TRANSACTIONAL_FROM_EMAIL };
+  t.after(() => {
+    if (previous.key === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = previous.key;
+    if (previous.from === undefined) delete process.env.TRANSACTIONAL_FROM_EMAIL;
+    else process.env.TRANSACTIONAL_FROM_EMAIL = previous.from;
+  });
+  process.env.RESEND_API_KEY = "test-key";
+  process.env.TRANSACTIONAL_FROM_EMAIL = "KPX Academy <admissions@example.com>";
+  let request;
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    request = { url, options, body: JSON.parse(options.body) };
+    return new Response(JSON.stringify({ id: "resend_souvenir_123" }), { status: 200, headers: { "Content-Type": "application/json" } });
+  });
+  const { sendSouvenirNotificationEmail } = await import("./emailOutbox.email.js");
+  const result = await sendSouvenirNotificationEmail({
+    id: "souvenir_job_123", notificationType: "ENQUIRY_SUBMITTED",
+    name: "<Ada>", email: "ada@example.com", publicReference: "KPX-ENQ-123",
+    productName: "Custom gift box", accessUrl: "https://kpxacademy.com.ng/souvenirs/enquiries/access/secret-token",
+  });
+  assert.equal(result.id, "resend_souvenir_123");
+  assert.equal(request.options.headers["Idempotency-Key"], "souvenir-notification-souvenir_job_123");
+  assert.equal(request.body.to[0], "ada@example.com");
+  assert.ok(request.body.html.includes("&lt;Ada&gt;"));
+  assert.ok(request.body.html.includes("https://kpxacademy.com.ng/souvenirs/enquiries/access/secret-token"));
+  assert.ok(request.body.text.includes("KPX-ENQ-123"));
+});
+
+test("includes the complete custom souvenir quotation in the notification email", async (t) => {
+  const previous = { key: process.env.RESEND_API_KEY, from: process.env.TRANSACTIONAL_FROM_EMAIL };
+  t.after(() => {
+    if (previous.key === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = previous.key;
+    if (previous.from === undefined) delete process.env.TRANSACTIONAL_FROM_EMAIL;
+    else process.env.TRANSACTIONAL_FROM_EMAIL = previous.from;
+  });
+  process.env.RESEND_API_KEY = "test-key";
+  process.env.TRANSACTIONAL_FROM_EMAIL = "KPX Academy <admissions@example.com>";
+  let request;
+  t.mock.method(globalThis, "fetch", async (_url, options) => {
+    request = JSON.parse(options.body);
+    return new Response(JSON.stringify({ id: "resend_quote_123" }), { status: 200, headers: { "Content-Type": "application/json" } });
+  });
+  const { sendSouvenirNotificationEmail } = await import("./emailOutbox.email.js");
+  await sendSouvenirNotificationEmail({
+    id: "souvenir_quote_job", notificationType: "QUOTE_SENT", name: "Ada",
+    email: "ada@example.com", publicReference: "KPX-ENQ-123", productName: "Custom gift box",
+    quoteVersion: 2, quoteTotal: "125000.00", currency: "NGN", quoteMessage: "Your requested design is ready.",
+    quoteItems: [{ name: "Branded gift box", quantity: 50, unitPrice: "2500.00", lineTotal: "125000.00" }],
+  });
+  assert.ok(request.text.includes("Quotation version: 2"));
+  assert.ok(request.text.includes("Branded gift box × 50"));
+  assert.ok(request.html.includes("Your requested design is ready."));
+  assert.ok(request.html.includes("₦"));
+});
