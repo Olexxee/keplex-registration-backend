@@ -373,9 +373,46 @@ const applyVerifiedTransaction = async (reference, transaction) => {
     if (payment.souvenirOrderId && status === "SUCCESS") {
       const updatedOrder = await tx.souvenirOrder.update({ where: { id: payment.souvenirOrderId }, data: { status: "PAID" } });
       souvenirOrderStatus = updatedOrder.status;
+      await tx.emailOutbox.createMany({
+        data: [{
+          type: "SOUVENIR_NOTIFICATION",
+          dedupeKey: `souvenir-order-payment-confirmed:${payment.id}`,
+          payload: {
+            notificationType: "ORDER_PAYMENT_CONFIRMED",
+            name: updatedOrder.customerName,
+            email: updatedOrder.customerEmail,
+            publicReference: updatedOrder.publicReference,
+            productName: updatedOrder.productNameSnapshot,
+            quantity: updatedOrder.quantity,
+            totalPrice: updatedOrder.totalPriceSnapshot.toString(),
+            currency: updatedOrder.currency,
+          },
+        }],
+        skipDuplicates: true,
+      });
     } else if (payment.souvenirOrderId && status === "REVERSED") {
       const updatedOrder = await tx.souvenirOrder.update({ where: { id: payment.souvenirOrderId }, data: { status: "AWAITING_PAYMENT" } });
       souvenirOrderStatus = updatedOrder.status;
+      await tx.emailOutbox.createMany({
+        data: [{
+          type: "SOUVENIR_NOTIFICATION",
+          dedupeKey: `souvenir-order-payment-reversed:${payment.id}`,
+          payload: {
+            notificationType: "ORDER_STATUS_UPDATED",
+            name: updatedOrder.customerName,
+            email: updatedOrder.customerEmail,
+            publicReference: updatedOrder.publicReference,
+            productName: updatedOrder.productNameSnapshot,
+            quantity: updatedOrder.quantity,
+            totalPrice: updatedOrder.totalPriceSnapshot.toString(),
+            currency: updatedOrder.currency,
+            previousStatus: "PAID",
+            newStatus: "AWAITING_PAYMENT",
+            customerMessage: "The payment was reversed. Please contact KPX Academy before making another payment.",
+          },
+        }],
+        skipDuplicates: true,
+      });
     }
 
     if (payment.workshopBookingId && status === "SUCCESS") {
