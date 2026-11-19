@@ -193,6 +193,7 @@ export const sendWorkshopBookingAccessCodeEmail = async ({ id, name, email, publ
 
 
 const souvenirNotificationCopy = (type) => ({
+  GUEST_ACCESS_CODE: { subject: "Your KPX Academy souvenir enquiry verification code", heading: "Verify your souvenir enquiry", message: "Use the one-time code below to securely view your custom souvenir enquiry." },
   ORDER_SUBMITTED: { subject: "We received your KPX Academy souvenir order", heading: "Souvenir order received", message: "Your souvenir order has been received. We will keep you updated as it moves through payment and production." },
   ORDER_STATUS_UPDATED: { subject: "Your KPX Academy souvenir order has been updated", heading: "Order status update", message: "There is an update to your souvenir order." },
   ORDER_PAYMENT_CONFIRMED: { subject: "Payment confirmed for your KPX Academy souvenir order", heading: "Payment confirmed", message: "Your payment has been verified and your souvenir order is now paid." },
@@ -207,7 +208,7 @@ export const sendSouvenirNotificationEmail = async ({
   id, notificationType, name, email, publicReference, productName, quantity,
   totalPrice, currency = "NGN", accessUrl, previousStatus, newStatus,
   customerMessage, quoteVersion, quoteTotal, quoteMessage, quoteTerms,
-  quoteExpiresAt, quoteItems = [],
+  quoteExpiresAt, quoteItems = [], code, expiresInMinutes = 5,
 }) => {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.TRANSACTIONAL_FROM_EMAIL || process.env.CERTIFICATE_FROM_EMAIL;
@@ -225,6 +226,7 @@ export const sendSouvenirNotificationEmail = async ({
   const safeMessage = escapeHtml(customerMessage || "");
   const safeQuoteMessage = escapeHtml(quoteMessage || "");
   const safeQuoteTerms = escapeHtml(quoteTerms || "");
+  const safeCode = escapeHtml(code || "");
   const formatMoney = (value) => value == null ? "Not specified" : new Intl.NumberFormat("en-NG", { style: "currency", currency }).format(Number(value));
   const quoteRows = quoteItems.map((item) => `${item.name} × ${item.quantity}: ${formatMoney(item.lineTotal)}`);
   const quoteHtml = quoteItems.map((item) => `<tr><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(item.name)} × ${Number(item.quantity)}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${escapeHtml(formatMoney(item.lineTotal))}</td></tr>`).join("");
@@ -245,8 +247,8 @@ export const sendSouvenirNotificationEmail = async ({
       to: [email],
       ...(replyTo ? { reply_to: replyTo } : {}),
       subject: copy.subject,
-      text: [`Hello ${name},`, "", copy.message, `Item: ${productName || "Custom souvenir"}`, `Reference: ${publicReference}`, statusLine, previousLine, quantity ? `Quantity: ${quantity}` : "", totalPrice ? `Order total: ${formatMoney(totalPrice)}` : "", quoteText, quoteMessage || "", quoteTerms ? `Terms: ${quoteTerms}` : "", customerMessage ? `Message from KPX Academy: ${customerMessage}` : "", accessUrl ? `Private tracking page: ${accessUrl}` : "Use the private tracking link in your original acknowledgement email to view the latest details.", "", "Regards,", "KPX Academy"].filter(Boolean).join("\n"),
-      html: `<div style="font-family:Arial,sans-serif;line-height:1.7;color:#222;max-width:620px;margin:auto"><h2 style="color:#17324D">${copy.heading}</h2><p>Hello ${safeName},</p><p>${copy.message}</p><p><strong>Item:</strong> ${safeProduct}<br/><strong>Reference:</strong> ${safeReference}</p>${statusLine ? `<p><strong>${escapeHtml(statusLine)}</strong></p>` : ""}${previousLine ? `<p>${escapeHtml(previousLine)}</p>` : ""}${quantity ? `<p><strong>Quantity:</strong> ${Number(quantity)}</p>` : ""}${totalPrice ? `<p><strong>Order total:</strong> ${escapeHtml(formatMoney(totalPrice))}</p>` : ""}${quoteItems.length ? `<h3 style="color:#17324D">Quotation · Version ${Number(quoteVersion)}</h3><table style="width:100%;border-collapse:collapse">${quoteHtml}<tr><td style="padding:10px;font-weight:bold">Total</td><td style="padding:10px;text-align:right;font-weight:bold">${escapeHtml(formatMoney(quoteTotal))}</td></tr></table>` : ""}${safeQuoteMessage ? `<p>${safeQuoteMessage}</p>` : ""}${safeQuoteTerms ? `<p><strong>Terms:</strong> ${safeQuoteTerms}</p>` : ""}${quoteExpiresAt ? `<p><strong>Quotation expires:</strong> ${escapeHtml(new Date(quoteExpiresAt).toLocaleString("en-NG", { timeZone: "Africa/Lagos" }))}</p>` : ""}${safeMessage ? `<p><strong>Message from KPX Academy:</strong><br/>${safeMessage}</p>` : ""}${accessLink}<p>For further assistance, reply to this email.</p><p>Regards,<br/><strong>KPX Academy</strong></p></div>`,
+      text: [`Hello ${name},`, "", copy.message, `Item: ${productName || "Custom souvenir"}`, `Reference: ${publicReference}`, statusLine, previousLine, quantity ? `Quantity: ${quantity}` : "", totalPrice ? `Order total: ${formatMoney(totalPrice)}` : "", quoteText, code ? `Verification code: ${code}` : "", code ? `This code expires in ${expiresInMinutes} minutes.` : "", quoteMessage || "", quoteTerms ? `Terms: ${quoteTerms}` : "", customerMessage ? `Message from KPX Academy: ${customerMessage}` : "", accessUrl ? `Private tracking page: ${accessUrl}` : "Use the private tracking link in your original acknowledgement email to view the latest details.", "", "Regards,", "KPX Academy"].filter(Boolean).join("\n"),
+      html: `<div style="font-family:Arial,sans-serif;line-height:1.7;color:#222;max-width:620px;margin:auto"><h2 style="color:#17324D">${copy.heading}</h2><p>Hello ${safeName},</p><p>${copy.message}</p><p><strong>Item:</strong> ${safeProduct}<br/><strong>Reference:</strong> ${safeReference}</p>${statusLine ? `<p><strong>${escapeHtml(statusLine)}</strong></p>` : ""}${previousLine ? `<p>${escapeHtml(previousLine)}</p>` : ""}${quantity ? `<p><strong>Quantity:</strong> ${Number(quantity)}</p>` : ""}${totalPrice ? `<p><strong>Order total:</strong> ${escapeHtml(formatMoney(totalPrice))}</p>` : ""}${code ? `<p style="margin:20px 0;padding:16px;background:#F7F5F0;border-radius:8px;font-size:30px;font-weight:700;letter-spacing:8px;color:#17324D;text-align:center">${safeCode}</p><p>This code expires in ${Number(expiresInMinutes)} minutes and can only be used once.</p>` : ""}${quoteItems.length ? `<h3 style="color:#17324D">Quotation · Version ${Number(quoteVersion)}</h3><table style="width:100%;border-collapse:collapse">${quoteHtml}<tr><td style="padding:10px;font-weight:bold">Total</td><td style="padding:10px;text-align:right;font-weight:bold">${escapeHtml(formatMoney(quoteTotal))}</td></tr></table>` : ""}${safeQuoteMessage ? `<p>${safeQuoteMessage}</p>` : ""}${safeQuoteTerms ? `<p><strong>Terms:</strong> ${safeQuoteTerms}</p>` : ""}${quoteExpiresAt ? `<p><strong>Quotation expires:</strong> ${escapeHtml(new Date(quoteExpiresAt).toLocaleString("en-NG", { timeZone: "Africa/Lagos" }))}</p>` : ""}${safeMessage ? `<p><strong>Message from KPX Academy:</strong><br/>${safeMessage}</p>` : ""}${accessLink}<p>For further assistance, reply to this email.</p><p>Regards,<br/><strong>KPX Academy</strong></p></div>`,
     }),
   });
   if (!response.ok) {
