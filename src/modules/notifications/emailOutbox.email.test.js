@@ -198,3 +198,31 @@ test("includes the complete custom souvenir quotation in the notification email"
   assert.ok(request.html.includes("Your requested design is ready."));
   assert.ok(request.html.includes("₦"));
 });
+
+
+test("sends a time-limited souvenir enquiry verification code", async (t) => {
+  const previous = { key: process.env.RESEND_API_KEY, from: process.env.TRANSACTIONAL_FROM_EMAIL };
+  t.after(() => {
+    if (previous.key === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = previous.key;
+    if (previous.from === undefined) delete process.env.TRANSACTIONAL_FROM_EMAIL;
+    else process.env.TRANSACTIONAL_FROM_EMAIL = previous.from;
+  });
+  process.env.RESEND_API_KEY = "test-key";
+  process.env.TRANSACTIONAL_FROM_EMAIL = "KPX Academy <admissions@example.com>";
+  let body;
+  t.mock.method(globalThis, "fetch", async (_url, options) => {
+    body = JSON.parse(options.body);
+    return new Response(JSON.stringify({ id: "resend_access_code_123" }), { status: 200, headers: { "Content-Type": "application/json" } });
+  });
+  const { sendSouvenirNotificationEmail } = await import("./emailOutbox.email.js");
+  await sendSouvenirNotificationEmail({
+    id: "souvenir_access_code_job", notificationType: "GUEST_ACCESS_CODE",
+    name: "Ada", email: "ada@example.com", publicReference: "KPX-ENQ-123",
+    code: "012345", expiresInMinutes: 5,
+  });
+  assert.equal(body.subject, "Your KPX Academy souvenir enquiry verification code");
+  assert.ok(body.text.includes("012345"));
+  assert.ok(body.html.includes("012345"));
+  assert.ok(body.text.includes("expires in 5 minutes"));
+});
