@@ -5,7 +5,7 @@ import { BadRequestError, ConflictError, NotFoundError } from "../../classes/err
 import crypto from "node:crypto";
 import { uploadMedia, deleteMedia } from "../../lib/cloudinaryMedia.js";
 import * as paymentService from "../payment/payment.service.js";
-import { calculateSouvenirPrice, findMatchingPriceTier, quantityRangesOverlap } from "./souvenir.pricing.js";
+import { calculateSouvenirPrice, findMatchingPriceTier, quantityRangesOverlap, hasTierRangeChanges } from "./souvenir.pricing.js";
 import { validateSelectedColors } from "./souvenir.colors.js";
 
 
@@ -176,7 +176,7 @@ export const updatePriceTier = async (tierId, data) => {
     if (!existing) throw new NotFoundError("Souvenir price tier not found");
     const candidate = { ...existing, ...data };
     const tiers = await souvenirDb.listPriceTiersForProduct(existing.productId, tx);
-    if (existing.active) assertNoTierOverlap(candidate, tiers, tierId);
+    if (existing.active && hasTierRangeChanges(data)) assertNoTierOverlap(candidate, tiers, tierId);
     const update = { ...data };
     if (data.unitPrice !== undefined) update.totalPrice = data.unitPrice;
     return souvenirDb.updatePriceTier(tierId, update, tx);
