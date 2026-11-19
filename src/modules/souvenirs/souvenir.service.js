@@ -24,8 +24,8 @@ const uniqueSlug = async (value, currentId = null) => {
   }
 };
 
-const requireProduct = async (id) => {
-  const product = await souvenirDb.findProductById(id);
+const requireProduct = async (id, tx = prisma) => {
+  const product = await souvenirDb.findProductById(id, tx);
   if (!product) throw new NotFoundError("Souvenir product not found");
   return product;
 };
