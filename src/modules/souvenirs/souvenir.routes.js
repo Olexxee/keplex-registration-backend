@@ -55,6 +55,7 @@ router.get("/enquiries/access/:token", validateParams(accessTokenParamsSchema), 
 router.post("/enquiries/track/request", guestAccessRequestLimiter, validateBody(requestGuestSouvenirEnquiryAccessCodeSchema), controller.requestGuestSouvenirEnquiryAccessCode);
 router.post("/enquiries/track/verify", guestAccessVerifyLimiter, validateBody(verifyGuestSouvenirEnquiryAccessCodeSchema), controller.verifyGuestSouvenirEnquiryAccessCode);
 router.get("/enquiries/access/:reference/:token", validateParams(guestEnquiryAccessParamsSchema), controller.getGuestSouvenirEnquiryByCredentials);
+router.post("/enquiries/access/:reference/:token/quote-response", validateParams(guestEnquiryAccessParamsSchema), validateBody(souvenirQuoteResponseSchema), controller.respondToSouvenirQuote);
 router.post("/enquiries/access/:token/quote-response", validateParams(accessTokenParamsSchema), validateBody(souvenirQuoteResponseSchema), controller.respondToSouvenirQuote);
 
 // Admin transaction handling. These static routes must precede /:slug.
