@@ -374,6 +374,9 @@ export const createGuestSouvenirOrder = async (data) => {
   const { publicReference, accessToken, accessTokenHash } = createGuestCredentials("SOUV");
 
   const order = await prisma.$transaction(async (tx) => {
+    // Serialize order creation with tier edits/deletion so a tier cannot be
+    // removed between matching it and persisting its historical order reference.
+    await lockSouvenirPriceTiers(tx, data.productId);
     // Read the product, active tier, and active colours inside the same transaction
     // used to persist the immutable order snapshots.
     const product = await souvenirDb.findActiveProductForOrder(data.productId, tx);
