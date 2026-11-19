@@ -39,3 +39,6 @@ export const quantityRangesOverlap = (a, b) => {
   const bMax = b.maxQuantity ?? Number.POSITIVE_INFINITY;
   return a.minQuantity <= bMax && b.minQuantity <= aMax;
 };
+
+// Price and label edits must not revalidate an unchanged quantity range.
+export const hasTierRangeChanges = (data) => data.minQuantity !== undefined || data.maxQuantity !== undefined;
