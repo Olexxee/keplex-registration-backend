@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createSouvenirOrderSchema } from "./souvenir.validation.js";
+import { createSouvenirOrderSchema, pricingScheduleSchema } from "./souvenir.validation.js";
 
 const validOrder = {
   customerName: "Kepemi Ebiwonjumi",
@@ -45,4 +45,24 @@ test("requires colorSelections rather than the removed colorOptionIds field", ()
     }).success,
     false,
   );
+});
+
+
+test("validates complete pricing schedule requests and normalizes unit prices", () => {
+  const parsed = pricingScheduleSchema.safeParse({
+    expectedVersion: 0,
+    bands: [
+      { minQuantity: 20, unitPrice: "700" },
+      { minQuantity: 51, unitPrice: 500.5 },
+    ],
+  });
+  assert.equal(parsed.success, true);
+  assert.equal(parsed.data.bands[0].unitPrice, "700");
+  assert.equal(parsed.data.bands[1].unitPrice, "500.5");
+});
+
+test("rejects invalid schedule price precision and empty schedules", () => {
+  assert.equal(pricingScheduleSchema.safeParse({ expectedVersion: 0, bands: [] }).success, false);
+  assert.equal(pricingScheduleSchema.safeParse({ expectedVersion: 0, bands: [{ minQuantity: 1, unitPrice: "2.345" }] }).success, false);
+  assert.equal(pricingScheduleSchema.safeParse({ expectedVersion: 0, bands: [{ minQuantity: 1, unitPrice: "0" }] }).success, false);
 });

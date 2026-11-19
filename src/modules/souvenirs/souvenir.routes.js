@@ -11,6 +11,7 @@ import {
   updateColorOptionSchema,
   setActiveSchema,
   createPriceTierSchema,
+  pricingScheduleSchema,
   updatePriceTierSchema,
   createProductMediaSchema,
   updateProductMediaSchema,
@@ -58,6 +59,8 @@ router.get("/admin/products", ...admin, controller.getAdminProducts);
 router.post("/admin/products", ...admin, validateBody(createProductSchema), controller.createProduct);
 router.patch("/admin/products/:id", ...admin, validateParams(idParamsSchema), validateBody(updateProductSchema), controller.updateProduct);
 router.patch("/admin/products/:id/status", ...admin, validateParams(idParamsSchema), validateBody(setActiveSchema), controller.setProductActive);
+router.get("/admin/products/:id/pricing-schedule", ...admin, validateParams(idParamsSchema), controller.getPricingSchedule);
+router.put("/admin/products/:id/pricing-schedule", ...admin, validateParams(idParamsSchema), validateBody(pricingScheduleSchema), controller.replacePricingSchedule);
 router.post("/admin/products/:id/archive", ...admin, validateParams(idParamsSchema), controller.archiveProduct);
 router.post("/admin/products/:id/restore", ...admin, validateParams(idParamsSchema), controller.restoreProduct);
 router.delete("/admin/products/:id", ...admin, validateParams(idParamsSchema), controller.deleteProduct);

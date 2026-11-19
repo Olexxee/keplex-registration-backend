@@ -1,6 +1,6 @@
 # Souvenir Pricing Rebuild — Architecture and Delivery Plan
 
-**Status:** Approved implementation specification; implementation not started  
+**Status:** Phase 1 schema foundation merged; Phase 2 backend schedule API in implementation  
 **Scope:** KPX Academy souvenir pricing subsystem across `keplex-registration-backend` and `kpx-academy`  
 **Primary objective:** Replace the current isolated tier CRUD workflow with a versioned, atomically managed quantity-pricing schedule. Eliminate ambiguous range semantics and protect historical orders.
 
@@ -295,8 +295,25 @@ Implementation is split into separate PRs per repository/phase. The user reviews
 - [x] Target schedule-level replacement architecture defined.
 - [x] Data preservation and migration strategy defined.
 - [x] Specification merged.
-- [ ] Schema foundation and expand-only migration implemented; read-only preflight supplied; rehearsal pending.
+- [x] Schema foundation and expand-only migration implemented; read-only preflight supplied; production rehearsal pending.
 - [ ] Backend API and tests implemented.
 - [ ] Frontend schedule editor implemented.
 - [ ] Public/order flow regression passed.
 - [ ] Production migration and acceptance verified.
+
+### Phase 2 implementation checkpoint — backend schedule API
+
+The Phase 2 branch introduces the following contract and behaviour:
+
+- `GET /api/souvenirs/admin/products/:id/pricing-schedule` returns the product's current version and current bands.
+- `PUT /api/souvenirs/admin/products/:id/pricing-schedule` accepts `{ expectedVersion, bands: [{ minQuantity, unitPrice }] }` and replaces the complete schedule atomically.
+- Each band's maximum is derived as the next band's minimum minus one. The final band is always open-ended. Administrators cannot submit a separately editable maximum or label.
+- The backend generates labels, normalizes per-piece prices to two decimal places, and fixes currency to NGN.
+- The existing product-scoped advisory transaction lock is reused. A stale `expectedVersion` returns HTTP 409; old current rows are archived and the new version is inserted in the same transaction.
+- Public catalogue queries and guest order creation now select `isCurrent` rows. Products without a current schedule are not listed publicly and cannot be ordered.
+- Product publication now requires a structurally valid current schedule.
+- Order creation records the selected band version and inclusive boundaries alongside the existing immutable unit/total price snapshots. Payment initialization continues to use the persisted order amount.
+- Individual tier create/update/activate/delete operations now return a conflict directing clients to the schedule-level API. They can no longer mutate pricing independently.
+- Pure schedule and request-validation tests cover derived ranges, generated labels, open-ended final bands, price precision, ordering, version consistency, and contiguous range validation.
+
+Important verification boundary: this branch adds a PostgreSQL 16 workflow that applies every migration to a clean database, then exercises atomic replacement, stale-version rejection, invalid-write rollback, concurrent writers, historical-version retention, and direct overlapping-write rejection. Its result is pending. A production-database migration rehearsal remains required before deployment. The frontend still needs Phase 3 integration before administrators can manage schedules through the deployed UI.

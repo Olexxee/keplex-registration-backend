@@ -1,19 +1,21 @@
-name: Souvenir migration validation
+name: Souvenir migration and schedule integration validation
 
 on:
   pull_request:
     branches: [main]
     paths:
       - "prisma/**"
+      - "src/modules/souvenirs/**"
       - ".github/workflows/souvenir-migration-validation.yml"
   push:
-    branches: [main, feature/souvenir-pricing-schema-v1]
+    branches: [main, feature/souvenir-pricing-schema-v1, feature/souvenir-pricing-schedule-api]
     paths:
       - "prisma/**"
+      - "src/modules/souvenirs/**"
       - ".github/workflows/souvenir-migration-validation.yml"
 
 jobs:
-  migrate:
+  migrate-and-test:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -32,6 +34,9 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/kpx_migration_test
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/kpx_migration_test
+      CLOUDINARY_CLOUD_NAME: test-cloud
+      CLOUDINARY_API_KEY: test-key
+      CLOUDINARY_API_SECRET: test-secret
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,7 +49,11 @@ jobs:
         run: npm ci
       - name: Validate Prisma schema
         run: npx prisma validate
+      - name: Generate Prisma Client
+        run: npm run prisma:generate
       - name: Apply every migration to a clean PostgreSQL database
         run: npx prisma migrate deploy
       - name: Confirm migration state
         run: npx prisma migrate status
+      - name: Test schedule transactions and database constraints
+        run: node --test src/modules/souvenirs/souvenir.schedule.database.js

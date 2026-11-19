@@ -49,6 +49,15 @@ export const setColorOptionActive = asyncWrapper(async (req, res) => {
   const data = await souvenirService.setColorOptionActive(req.validated.params.colorId, req.validated.body.active);
   return res.json({ success: true, data });
 });
+export const getPricingSchedule = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.getPricingSchedule(req.validated.params.id);
+  return res.json({ success: true, data });
+});
+export const replacePricingSchedule = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.replacePricingSchedule(req.validated.params.id, req.validated.body);
+  return res.json({ success: true, message: "Souvenir pricing schedule saved", data });
+});
+
 export const createPriceTier = asyncWrapper(async (req, res) => {
   const data = await souvenirService.createPriceTier(req.validated.params.id, req.validated.body);
   return res.status(201).json({ success: true, data });

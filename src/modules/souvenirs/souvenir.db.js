@@ -23,10 +23,7 @@ const publicInclude = {
     },
   },
   priceTiers: {
-    where: {
-      active: true,
-      unitPrice: { not: null },
-    },
+    where: { isCurrent: true, unitPrice: { not: null } },
     orderBy: [
       { minQuantity: "asc" },
       { displayOrder: "asc" },
@@ -51,7 +48,7 @@ const adminInclude = {
 
 export const listPublicProducts = (tx = prisma) =>
   tx.souvenirProduct.findMany({
-    where: { active: true },
+    where: { active: true, archivedAt: null, priceTiers: { some: { isCurrent: true, unitPrice: { not: null } } } },
     orderBy: [
       { featured: "desc" },
       { displayOrder: "asc" },
@@ -61,7 +58,7 @@ export const listPublicProducts = (tx = prisma) =>
   });
 export const findPublicProductBySlug = (slug, tx = prisma) =>
   tx.souvenirProduct.findFirst({
-    where: { slug, active: true, archivedAt: null },
+    where: { slug, active: true, archivedAt: null, priceTiers: { some: { isCurrent: true, unitPrice: { not: null } } } },
     include: publicInclude,
   });
 export const listAdminProducts = (tx = prisma) =>
@@ -154,6 +151,45 @@ export const getActivePriceTierCount = (productId, tx = prisma) =>
   tx.souvenirPriceTier.count({
     where: { productId, active: true, unitPrice: { not: null } },
   });
+export const listCurrentPriceTiers = (productId, version, tx = prisma) =>
+  tx.souvenirPriceTier.findMany({
+    where: { productId, version, isCurrent: true },
+    orderBy: { minQuantity: "asc" },
+  });
+export const countCurrentPriceTiers = (productId, version, tx = prisma) =>
+  tx.souvenirPriceTier.count({
+    where: { productId, version, isCurrent: true, unitPrice: { not: null } },
+  });
+export const getCurrentPricingSchedule = async (productId, tx = prisma) => {
+  const product = await tx.souvenirProduct.findUnique({
+    where: { id: productId },
+    select: { id: true, name: true, active: true, archivedAt: true, pricingVersion: true },
+  });
+  if (!product) return null;
+  const bands = await listCurrentPriceTiers(productId, product.pricingVersion, tx);
+  return { product, bands };
+};
+export const archiveCurrentPriceBands = (productId, tx = prisma) =>
+  tx.souvenirPriceTier.updateMany({
+    where: { productId, isCurrent: true },
+    data: { isCurrent: false },
+  });
+export const createCurrentPriceBands = (productId, version, bands, tx = prisma) =>
+  tx.souvenirPriceTier.createMany({
+    data: bands.map((band) => ({
+      ...band,
+      productId,
+      version,
+      isCurrent: true,
+      active: true,
+      totalPrice: band.unitPrice,
+    })),
+  });
+export const updateProductPricingVersion = (productId, pricingVersion, tx = prisma) =>
+  tx.souvenirProduct.update({
+    where: { id: productId },
+    data: { pricingVersion },
+  });
 
 export const findActiveColorOptionsByIds = (productId, ids, tx = prisma) =>
   tx.souvenirColorOption.findMany({
@@ -178,10 +214,10 @@ const enquiryInclude = {
 
 export const findActiveProductForOrder = (id, tx = prisma) =>
   tx.souvenirProduct.findFirst({
-    where: { id, active: true },
+    where: { id, active: true, archivedAt: null },
     include: {
       colorOptions: { where: { active: true } },
-      priceTiers: { where: { active: true, unitPrice: { not: null } } },
+      priceTiers: { where: { isCurrent: true, unitPrice: { not: null } }, orderBy: { minQuantity: "asc" } },
     },
   });
 
