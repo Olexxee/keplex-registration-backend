@@ -171,3 +171,19 @@ export const souvenirQuoteResponseSchema = z.object({
   quoteId: z.string().trim().min(1),
   decision: z.enum(["ACCEPT", "DECLINE"]),
 });
+
+
+export const guestEnquiryAccessParamsSchema = z.object({
+  reference: z.string().trim().min(8).max(80).regex(/^KPX-ENQ-[A-Z0-9-]+$/i).transform((value) => value.toUpperCase()),
+  token: z.string().trim().length(64).regex(/^[a-f0-9]{64}$/i),
+});
+
+export const requestGuestSouvenirEnquiryAccessCodeSchema = z.object({
+  reference: z.string().trim().min(8).max(80).regex(/^KPX-ENQ-[A-Z0-9-]+$/i).transform((value) => value.toUpperCase()),
+}).strict();
+
+export const verifyGuestSouvenirEnquiryAccessCodeSchema = z.object({
+  reference: z.string().trim().min(8).max(80).regex(/^KPX-ENQ-[A-Z0-9-]+$/i).transform((value) => value.toUpperCase()),
+  challengeToken: z.string().trim().length(64).regex(/^[a-f0-9]{64}$/i),
+  code: z.string().trim().length(6).regex(/^\\d{6}$/),
+}).strict();
