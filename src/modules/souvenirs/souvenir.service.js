@@ -7,6 +7,7 @@ import { uploadMedia, deleteMedia } from "../../lib/cloudinaryMedia.js";
 import * as paymentService from "../payment/payment.service.js";
 import { calculateSouvenirPrice, findMatchingPriceTier, quantityRangesOverlap } from "./souvenir.pricing.js";
 import { validateSelectedColors } from "./souvenir.colors.js";
+import { buildPricingBands, formatPriceBandLabel, isValidCurrentSchedule } from "./souvenir.schedule.js";
 
 
 
@@ -78,8 +79,11 @@ export const setProductActive = async (id, active) => prisma.$transaction(async 
   if (active && product.archivedAt) {
     throw new ConflictError("Restore this archived package before publishing it");
   }
-  if (active && (await souvenirDb.getActivePriceTierCount(id, tx)) === 0) {
-    throw new ConflictError("Add at least one active price tier before publishing this souvenir");
+  if (active) {
+    const bands = await souvenirDb.listCurrentPriceTiers(id, product.pricingVersion, tx);
+    if (!isValidCurrentSchedule(bands, product.pricingVersion)) {
+      throw new ConflictError("Configure and save a complete valid pricing schedule before publishing this souvenir");
+    }
   }
   return souvenirDb.updateProduct(id, { active }, tx);
 });
@@ -136,6 +140,61 @@ const lockSouvenirPriceTiers = async (tx, productId) => {
   // Serializes all tier mutations for one product, including overlap checks and writes.
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`souvenir-price-tiers:${productId}`}))`;
 };
+
+const serializePricingSchedule = (product, bands) => ({
+  productId: product.id,
+  productName: product.name,
+  version: product.pricingVersion,
+  isValid: isValidCurrentSchedule(bands, product.pricingVersion),
+  isPublished: product.active,
+  bands: bands.map((band) => ({
+    id: band.id,
+    version: band.version,
+    minQuantity: band.minQuantity,
+    maxQuantity: band.maxQuantity,
+    label: formatPriceBandLabel(band),
+    unitPrice: band.unitPrice,
+    currency: band.currency,
+  })),
+});
+
+export const getPricingSchedule = async (productId) => {
+  const result = await souvenirDb.getCurrentPricingSchedule(productId);
+  if (!result) throw new NotFoundError("Souvenir product not found");
+  return serializePricingSchedule(result.product, result.bands);
+};
+
+export const replacePricingSchedule = async (productId, data) => prisma.$transaction(async (tx) => {
+  await lockSouvenirPriceTiers(tx, productId);
+  const product = await requireProduct(productId, tx);
+  if (data.expectedVersion !== product.pricingVersion) {
+    throw new ConflictError(`Pricing schedule changed since it was loaded. Expected version ${data.expectedVersion}; current version is ${product.pricingVersion}. Reload before saving.`);
+  }
+
+  let bands;
+  try {
+    bands = buildPricingBands(data.bands);
+  } catch (error) {
+    throw new BadRequestError(error.message);
+  }
+
+  const nextVersion = product.pricingVersion + 1;
+  if (!Number.isSafeInteger(nextVersion)) {
+    throw new ConflictError("Pricing schedule version is exhausted");
+  }
+
+  // The exclusion constraint applies only to current rows. Archive the complete
+  // old version before inserting the replacement, within this same transaction.
+  await souvenirDb.archiveCurrentPriceBands(productId, tx);
+  await souvenirDb.updateProductPricingVersion(productId, nextVersion, tx);
+  await souvenirDb.createCurrentPriceBands(productId, nextVersion, bands, tx);
+
+  const saved = await souvenirDb.getCurrentPricingSchedule(productId, tx);
+  if (!saved || !isValidCurrentSchedule(saved.bands, nextVersion)) {
+    throw new ConflictError("The resulting pricing schedule failed integrity validation");
+  }
+  return serializePricingSchedule(saved.product, saved.bands);
+});
 
 const assertFiniteTierRange = (candidate) => {
   if (!Number.isSafeInteger(candidate.minQuantity) || candidate.minQuantity < 1 ||
@@ -392,7 +451,11 @@ export const createGuestSouvenirOrder = async (data) => {
     const product = await souvenirDb.findActiveProductForOrder(data.productId, tx);
     if (!product) throw new NotFoundError("Souvenir package is unavailable");
 
-    const tier = findMatchingPriceTier(product.priceTiers, data.quantity);
+    const currentBands = product.priceTiers.filter((band) => band.version === product.pricingVersion);
+    if (!isValidCurrentSchedule(currentBands, product.pricingVersion)) {
+      throw new ConflictError("This souvenir does not have a valid current pricing schedule");
+    }
+    const tier = findMatchingPriceTier(currentBands, data.quantity);
     if (!tier) {
       throw new BadRequestError("The selected quantity does not match an available price package");
     }
@@ -417,7 +480,10 @@ export const createGuestSouvenirOrder = async (data) => {
       productId: product.id,
       priceTierId: tier.id,
       productNameSnapshot: product.name,
-      priceTierLabelSnapshot: tier.label,
+      priceTierLabelSnapshot: formatPriceBandLabel(tier),
+      priceTierVersionSnapshot: tier.version,
+      priceTierMinQuantitySnapshot: tier.minQuantity,
+      priceTierMaxQuantitySnapshot: tier.maxQuantity,
       quantity: data.quantity,
       unitPriceSnapshot,
       totalPriceSnapshot,
