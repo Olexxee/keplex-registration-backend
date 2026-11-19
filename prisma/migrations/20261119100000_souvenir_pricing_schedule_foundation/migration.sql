@@ -38,3 +38,9 @@ ALTER TABLE "SouvenirPriceTier"
     "productId" WITH =,
     int8range("minQuantity"::bigint, "maxQuantity"::bigint + 1, '[)') WITH &&
   ) WHERE ("isCurrent" = true);
+
+CREATE INDEX "SouvenirPriceTier_productId_isCurrent_minQuantity_idx"
+  ON "SouvenirPriceTier"("productId", "isCurrent", "minQuantity");
+
+CREATE INDEX "SouvenirPriceTier_productId_version_idx"
+  ON "SouvenirPriceTier"("productId", "version");
