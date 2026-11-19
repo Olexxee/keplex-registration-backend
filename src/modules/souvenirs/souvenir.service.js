@@ -137,6 +137,13 @@ const lockSouvenirPriceTiers = async (tx, productId) => {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`souvenir-price-tiers:${productId}`}))`;
 };
 
+const assertFiniteTierRange = (candidate) => {
+  if (!Number.isSafeInteger(candidate.minQuantity) || candidate.minQuantity < 1 ||
+      !Number.isSafeInteger(candidate.maxQuantity) || candidate.maxQuantity < candidate.minQuantity) {
+    throw new BadRequestError("Every souvenir price tier must have a finite maximum quantity greater than or equal to its minimum quantity");
+  }
+};
+
 const assertNoTierOverlap = (candidate, tiers, excludedId = null) => {
   if (candidate.maxQuantity != null && candidate.maxQuantity < candidate.minQuantity) {
     throw new BadRequestError("Maximum quantity must be greater than or equal to minimum quantity");
@@ -151,6 +158,7 @@ const assertNoTierOverlap = (candidate, tiers, excludedId = null) => {
 export const createPriceTier = async (productId, data) => prisma.$transaction(async (tx) => {
   await lockSouvenirPriceTiers(tx, productId);
   await requireProduct(productId, tx);
+  assertFiniteTierRange(data);
   const tiers = await souvenirDb.listPriceTiersForProduct(productId, tx);
   assertNoTierOverlap(data, tiers);
   return souvenirDb.createPriceTier({
@@ -175,6 +183,7 @@ export const updatePriceTier = async (tierId, data) => {
     const existing = await souvenirDb.findPriceTierById(tierId, tx);
     if (!existing) throw new NotFoundError("Souvenir price tier not found");
     const candidate = { ...existing, ...data };
+    assertFiniteTierRange(candidate);
     const tiers = await souvenirDb.listPriceTiersForProduct(existing.productId, tx);
     if (existing.active) assertNoTierOverlap(candidate, tiers, tierId);
     const update = { ...data };
@@ -191,6 +200,7 @@ export const setPriceTierActive = async (tierId, active) => {
     const existing = await souvenirDb.findPriceTierById(tierId, tx);
     if (!existing) throw new NotFoundError("Souvenir price tier not found");
     if (active) {
+      assertFiniteTierRange(existing);
       if (existing.unitPrice == null) throw new ConflictError("Set a per-piece rate before activating this price tier");
       const tiers = await souvenirDb.listPriceTiersForProduct(existing.productId, tx);
       assertNoTierOverlap(existing, tiers, tierId);
