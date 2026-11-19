@@ -231,7 +231,7 @@ export const sendSouvenirNotificationEmail = async ({
   const quoteRows = quoteItems.map((item) => `${item.name} × ${item.quantity}: ${formatMoney(item.lineTotal)}`);
   const quoteHtml = quoteItems.map((item) => `<tr><td style="padding:8px;border-bottom:1px solid #eee">${escapeHtml(item.name)} × ${Number(item.quantity)}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${escapeHtml(formatMoney(item.lineTotal))}</td></tr>`).join("");
   const accessLink = accessUrl ? `<p style="margin:24px 0"><a href="${escapeHtml(accessUrl)}" style="display:inline-block;padding:12px 18px;background:#17324D;color:#fff;text-decoration:none;border-radius:6px">View your private souvenir page</a></p>` : "";
-  const trackerUrl = process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL.replace(/\\/+$/, "")}/souvenirs/track-enquiry` : null;
+  const trackerUrl = process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL.replace(/\/+$/, "")}/souvenirs/track-enquiry` : null;
   const trackerLink = !accessUrl && trackerUrl && notificationType !== "GUEST_ACCESS_CODE"
     ? `<p style="margin:24px 0"><a href="${escapeHtml(trackerUrl)}" style="color:#17324D;font-weight:700">Track your souvenir request</a></p>`
     : "";
