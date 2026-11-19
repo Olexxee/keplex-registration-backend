@@ -671,6 +671,7 @@ export const requestGuestSouvenirEnquiryAccessCode = async ({ reference }) => {
         email: enquiry.customerEmail,
         publicReference: enquiry.publicReference,
         code,
+        expiresAt: expiresAt.toISOString(),
         expiresInMinutes: 5,
       },
     });
