@@ -61,6 +61,10 @@ export const setPriceTierActive = asyncWrapper(async (req, res) => {
   const data = await souvenirService.setPriceTierActive(req.validated.params.tierId, req.validated.body.active);
   return res.json({ success: true, data });
 });
+export const deletePriceTier = asyncWrapper(async (req, res) => {
+  const data = await souvenirService.deletePriceTier(req.validated.params.tierId);
+  return res.json({ success: true, message: "Souvenir price tier deleted", data });
+});
 export const createProductMedia = asyncWrapper(async (req, res) => {
   const data = await souvenirService.createProductMedia(req.validated.params.id, req.validated.body);
   return res.status(201).json({ success: true, data });
