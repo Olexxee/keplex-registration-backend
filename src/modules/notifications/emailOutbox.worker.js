@@ -133,7 +133,8 @@ const processOne = async () => prisma.$transaction(async (tx) => {
     }
 
     if (error?.permanent || job.attempts >= MAX_ATTEMPTS) {
-      if (job.type === "WORKSHOP_BOOKING_ACCESS_CODE") {
+      if (job.type === "WORKSHOP_BOOKING_ACCESS_CODE" || job.type === "SOUVENIR_NOTIFICATION") {
+        // Never retain one-time codes or guest bearer URLs after a job is terminal.
         await tx.emailOutbox.update({ where: { id: job.id }, data: { payload: {} } });
       }
       await outboxDb.markEmailDead(job.id, message, tx);
