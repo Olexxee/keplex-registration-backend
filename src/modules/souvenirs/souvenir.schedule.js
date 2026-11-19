@@ -17,7 +17,7 @@ export const buildPricingBands = (input) => {
     }
 
     const price = String(band.unitPrice ?? "").trim();
-    if (!/^\\d+(?:\\.\\d{1,2})?$/.test(price) || !/[1-9]/.test(price.replace(".", ""))) {
+    if (!/^\d+(?:\.\d{1,2})?$/.test(price) || !/[1-9]/.test(price.replace(".", ""))) {
       throw new TypeError(`Band ${index + 1}: unit price must be greater than zero with at most two decimal places`);
     }
     const [major, minor = ""] = price.split(".");
