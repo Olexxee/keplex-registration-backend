@@ -420,7 +420,7 @@ export const createGuestSouvenirOrder = async (data) => {
       totalPrice: created.totalPriceSnapshot.toString(),
       currency: created.currency,
       accessUrl: process.env.FRONTEND_URL
-        ? `${process.env.FRONTEND_URL.replace(/\\/+$/, "")}/souvenirs/orders/access/${accessToken}`
+        ? `${process.env.FRONTEND_URL.replace(/\/+$/, "")}/souvenirs/orders/access/${accessToken}`
         : null,
     });
 
@@ -590,7 +590,7 @@ export const createGuestSouvenirEnquiry = async ({ data, files = [] }) => {
         productName: created.product?.name ?? "Custom souvenir",
         requestedQuantity: created.requestedQuantity,
         accessUrl: process.env.FRONTEND_URL
-          ? `${process.env.FRONTEND_URL.replace(/\\/+$/, "")}/souvenirs/enquiries/access/${accessToken}`
+          ? `${process.env.FRONTEND_URL.replace(/\/+$/, "")}/souvenirs/enquiries/access/${accessToken}`
           : null,
       });
       return souvenirDb.findSouvenirEnquiryById(created.id, tx);
