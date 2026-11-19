@@ -7,7 +7,7 @@ on:
       - "prisma/**"
       - ".github/workflows/souvenir-migration-validation.yml"
   push:
-    branches: [main]
+    branches: [main, feature/souvenir-pricing-schema-v1]
     paths:
       - "prisma/**"
       - ".github/workflows/souvenir-migration-validation.yml"
