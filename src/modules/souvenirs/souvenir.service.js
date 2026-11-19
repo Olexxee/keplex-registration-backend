@@ -957,13 +957,17 @@ export const sendAdminSouvenirQuote = async (enquiryId, quoteId) => {
   });
 };
 
-export const respondToSouvenirQuote = async (token, { quoteId, decision }) => {
+export const respondToSouvenirQuote = async (token, { quoteId, decision }, reference = null) => {
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-  const enquiry = await souvenirDb.findEnquiryByTokenHash(tokenHash);
+  const enquiry = reference
+    ? await souvenirDb.findSouvenirEnquiryByCredentials(reference, tokenHash)
+    : await souvenirDb.findEnquiryByTokenHash(tokenHash);
   if (!enquiry) throw new NotFoundError("Souvenir enquiry not found");
 
   const result = await prisma.$transaction(async (tx) => {
-    const currentEnquiry = await souvenirDb.findEnquiryByTokenHash(tokenHash, tx);
+    const currentEnquiry = reference
+      ? await souvenirDb.findSouvenirEnquiryByCredentials(reference, tokenHash, tx)
+      : await souvenirDb.findEnquiryByTokenHash(tokenHash, tx);
     if (!currentEnquiry) throw new NotFoundError("Souvenir enquiry not found");
     const quote = await souvenirDb.findSouvenirQuoteByIdAndEnquiry(quoteId, currentEnquiry.id, tx);
     if (!quote) throw new NotFoundError("Souvenir quote not found");
