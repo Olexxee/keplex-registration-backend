@@ -5,7 +5,7 @@ import { BadRequestError, ConflictError, NotFoundError } from "../../classes/err
 import crypto from "node:crypto";
 import { uploadMedia, deleteMedia } from "../../lib/cloudinaryMedia.js";
 import * as paymentService from "../payment/payment.service.js";
-import { calculateSouvenirPrice, findMatchingPriceTier, quantityRangesOverlap } from "./souvenir.pricing.js";
+import { calculateSouvenirPrice, findMatchingPriceTier } from "./souvenir.pricing.js";
 import { validateSelectedColors } from "./souvenir.colors.js";
 import { buildPricingBands, formatPriceBandLabel, isValidCurrentSchedule } from "./souvenir.schedule.js";
 
@@ -196,104 +196,14 @@ export const replacePricingSchedule = async (productId, data) => prisma.$transac
   return serializePricingSchedule(saved.product, saved.bands);
 });
 
-const assertFiniteTierRange = (candidate) => {
-  if (!Number.isSafeInteger(candidate.minQuantity) || candidate.minQuantity < 1 ||
-      !Number.isSafeInteger(candidate.maxQuantity) || candidate.maxQuantity < candidate.minQuantity) {
-    throw new BadRequestError("Every souvenir price tier must have a finite maximum quantity greater than or equal to its minimum quantity");
-  }
+const legacyTierMutationError = () => {
+  throw new ConflictError("Individual price-tier mutations are retired. Read and replace the complete product pricing schedule instead.");
 };
 
-const assertNoTierOverlap = (candidate, tiers, excludedId = null) => {
-  if (candidate.maxQuantity != null && candidate.maxQuantity < candidate.minQuantity) {
-    throw new BadRequestError("Maximum quantity must be greater than or equal to minimum quantity");
-  }
-  const conflict = tiers.find((tier) => tier.id !== excludedId && tier.active !== false && quantityRangesOverlap(candidate, tier));
-  if (conflict) {
-    const range = conflict.maxQuantity == null ? `${conflict.minQuantity}+` : `${conflict.minQuantity}-${conflict.maxQuantity}`;
-    throw new ConflictError(`Quantity range overlaps the existing active tier "${conflict.label}" (${range})`);
-  }
-};
-
-export const createPriceTier = async (productId, data) => prisma.$transaction(async (tx) => {
-  await lockSouvenirPriceTiers(tx, productId);
-  await requireProduct(productId, tx);
-  assertFiniteTierRange(data);
-  const tiers = await souvenirDb.listPriceTiersForProduct(productId, tx);
-  assertNoTierOverlap(data, tiers);
-  return souvenirDb.createPriceTier({
-    productId,
-    label: data.label,
-    minQuantity: data.minQuantity,
-    maxQuantity: data.maxQuantity ?? null,
-    // Keep the legacy column populated while all new pricing uses unitPrice.
-    totalPrice: data.unitPrice,
-    unitPrice: data.unitPrice,
-    currency: data.currency ?? "NGN",
-    displayOrder: data.displayOrder ?? 0,
-    active: true,
-  }, tx);
-});
-
-export const updatePriceTier = async (tierId, data) => {
-  const initial = await souvenirDb.findPriceTierById(tierId);
-  if (!initial) throw new NotFoundError("Souvenir price tier not found");
-  return prisma.$transaction(async (tx) => {
-    await lockSouvenirPriceTiers(tx, initial.productId);
-    const existing = await souvenirDb.findPriceTierById(tierId, tx);
-    if (!existing) throw new NotFoundError("Souvenir price tier not found");
-    const candidate = { ...existing, ...data };
-    assertFiniteTierRange(candidate);
-    const tiers = await souvenirDb.listPriceTiersForProduct(existing.productId, tx);
-    if (existing.active) assertNoTierOverlap(candidate, tiers, tierId);
-    const update = { ...data };
-    if (data.unitPrice !== undefined) update.totalPrice = data.unitPrice;
-    return souvenirDb.updatePriceTier(tierId, update, tx);
-  });
-};
-
-export const setPriceTierActive = async (tierId, active) => {
-  const initial = await souvenirDb.findPriceTierById(tierId);
-  if (!initial) throw new NotFoundError("Souvenir price tier not found");
-  return prisma.$transaction(async (tx) => {
-    await lockSouvenirPriceTiers(tx, initial.productId);
-    const existing = await souvenirDb.findPriceTierById(tierId, tx);
-    if (!existing) throw new NotFoundError("Souvenir price tier not found");
-    if (active) {
-      assertFiniteTierRange(existing);
-      if (existing.unitPrice == null) throw new ConflictError("Set a per-piece rate before activating this price tier");
-      const tiers = await souvenirDb.listPriceTiersForProduct(existing.productId, tx);
-      assertNoTierOverlap(existing, tiers, tierId);
-    } else if (existing.active && existing.unitPrice != null && existing.product.active) {
-      const activeCount = await souvenirDb.getActivePriceTierCount(existing.productId, tx);
-      if (activeCount <= 1) {
-        throw new ConflictError("A published souvenir must retain at least one active, priced quantity tier. Add or activate another tier, or unpublish the package first.");
-      }
-    }
-    return souvenirDb.updatePriceTier(tierId, { active }, tx);
-  });
-};
-
-export const deletePriceTier = async (tierId) => {
-  const initial = await souvenirDb.findPriceTierById(tierId);
-  if (!initial) throw new NotFoundError("Souvenir price tier not found");
-  return prisma.$transaction(async (tx) => {
-    await lockSouvenirPriceTiers(tx, initial.productId);
-    const existing = await souvenirDb.findPriceTierById(tierId, tx);
-    if (!existing) throw new NotFoundError("Souvenir price tier not found");
-    const orderCount = await souvenirDb.countOrdersForPriceTier(tierId, tx);
-    if (orderCount > 0) {
-      throw new ConflictError(`This price tier is referenced by ${orderCount} historical order(s) and cannot be deleted. Deactivate it instead; order price snapshots remain preserved.`);
-    }
-    if (existing.active && existing.unitPrice != null && existing.product.active) {
-      const activeCount = await souvenirDb.getActivePriceTierCount(existing.productId, tx);
-      if (activeCount <= 1) {
-        throw new ConflictError("A published souvenir must retain at least one active, priced quantity tier. Add or activate another tier, or unpublish the package first.");
-      }
-    }
-    await souvenirDb.deletePriceTier(tierId, tx);
-    return { id: tierId, deleted: true };
-  });
-};
+export const createPriceTier = async () => legacyTierMutationError();
+export const updatePriceTier = async () => legacyTierMutationError();
+export const setPriceTierActive = async () => legacyTierMutationError();
+export const deletePriceTier = async () => legacyTierMutationError();
 
 export const createProductMedia = async (productId, data) => {
   await requireProduct(productId);
