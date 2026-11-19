@@ -8,14 +8,16 @@ export const buildPricingBands = (input) => {
     throw new TypeError("A pricing schedule must contain between 1 and 50 bands");
   }
 
-  const starts = input.map((band, index) => {
+  input.forEach((band, index) => {
     if (!Number.isSafeInteger(band.minQuantity) || band.minQuantity < 1 || band.minQuantity > MAX_QUANTITY) {
       throw new TypeError(`Band ${index + 1}: minimum quantity must be an integer between 1 and ${MAX_QUANTITY}`);
     }
     if (index > 0 && band.minQuantity <= input[index - 1].minQuantity) {
       throw new TypeError("Band minimum quantities must be strictly increasing");
     }
+  });
 
+  const starts = input.map((band, index) => {
     const price = String(band.unitPrice ?? "").trim();
     if (!/^\d+(?:\.\d{1,2})?$/.test(price) || !/[1-9]/.test(price.replace(".", ""))) {
       throw new TypeError(`Band ${index + 1}: unit price must be greater than zero with at most two decimal places`);
