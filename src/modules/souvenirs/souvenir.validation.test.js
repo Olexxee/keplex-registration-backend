@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createSouvenirOrderSchema } from "./souvenir.validation.js";
+import { createSouvenirOrderSchema, pricingScheduleSchema } from "./souvenir.validation.js";
 
 const validOrder = {
   customerName: "Kepemi Ebiwonjumi",
@@ -47,7 +47,6 @@ test("requires colorSelections rather than the removed colorOptionIds field", ()
   );
 });
 
-import { pricingScheduleSchema } from "./souvenir.validation.js";
 
 test("validates complete pricing schedule requests and normalizes unit prices", () => {
   const parsed = pricingScheduleSchema.safeParse({
