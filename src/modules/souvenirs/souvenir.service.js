@@ -72,16 +72,17 @@ export const updateProduct = async (id, data) => {
   }
 };
 
-export const setProductActive = async (id, active) => {
-  const product = await requireProduct(id);
+export const setProductActive = async (id, active) => prisma.$transaction(async (tx) => {
+  await lockSouvenirPriceTiers(tx, id);
+  const product = await requireProduct(id, tx);
   if (active && product.archivedAt) {
     throw new ConflictError("Restore this archived package before publishing it");
   }
-  if (active && (await souvenirDb.getActivePriceTierCount(id)) === 0) {
+  if (active && (await souvenirDb.getActivePriceTierCount(id, tx)) === 0) {
     throw new ConflictError("Add at least one active price tier before publishing this souvenir");
   }
-  return souvenirDb.updateProduct(id, { active });
-};
+  return souvenirDb.updateProduct(id, { active }, tx);
+});
 
 export const archiveProduct = async (id) => {
   await requireProduct(id);
@@ -131,17 +132,26 @@ export const setColorOptionActive = async (colorId, active) => {
 };
 
 
+const lockSouvenirPriceTiers = async (tx, productId) => {
+  // Serializes all tier mutations for one product, including overlap checks and writes.
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`souvenir-price-tiers:${productId}`}))`;
+};
+
 const assertNoTierOverlap = (candidate, tiers, excludedId = null) => {
   if (candidate.maxQuantity != null && candidate.maxQuantity < candidate.minQuantity) {
     throw new BadRequestError("Maximum quantity must be greater than or equal to minimum quantity");
   }
   const conflict = tiers.find((tier) => tier.id !== excludedId && tier.active !== false && quantityRangesOverlap(candidate, tier));
-  if (conflict) throw new ConflictError(`Quantity range overlaps the existing tier "${conflict.label}"`);
+  if (conflict) {
+    const range = conflict.maxQuantity == null ? `${conflict.minQuantity}+` : `${conflict.minQuantity}-${conflict.maxQuantity}`;
+    throw new ConflictError(`Quantity range overlaps the existing active tier "${conflict.label}" (${range})`);
+  }
 };
 
-export const createPriceTier = async (productId, data) => {
-  await requireProduct(productId);
-  const tiers = await souvenirDb.listPriceTiersForProduct(productId);
+export const createPriceTier = async (productId, data) => prisma.$transaction(async (tx) => {
+  await lockSouvenirPriceTiers(tx, productId);
+  await requireProduct(productId, tx);
+  const tiers = await souvenirDb.listPriceTiersForProduct(productId, tx);
   assertNoTierOverlap(data, tiers);
   return souvenirDb.createPriceTier({
     productId,
@@ -154,29 +164,66 @@ export const createPriceTier = async (productId, data) => {
     currency: data.currency ?? "NGN",
     displayOrder: data.displayOrder ?? 0,
     active: true,
+  }, tx);
+});
+
+export const updatePriceTier = async (tierId, data) => {
+  const initial = await souvenirDb.findPriceTierById(tierId);
+  if (!initial) throw new NotFoundError("Souvenir price tier not found");
+  return prisma.$transaction(async (tx) => {
+    await lockSouvenirPriceTiers(tx, initial.productId);
+    const existing = await souvenirDb.findPriceTierById(tierId, tx);
+    if (!existing) throw new NotFoundError("Souvenir price tier not found");
+    const candidate = { ...existing, ...data };
+    const tiers = await souvenirDb.listPriceTiersForProduct(existing.productId, tx);
+    if (existing.active) assertNoTierOverlap(candidate, tiers, tierId);
+    const update = { ...data };
+    if (data.unitPrice !== undefined) update.totalPrice = data.unitPrice;
+    return souvenirDb.updatePriceTier(tierId, update, tx);
   });
 };
 
-export const updatePriceTier = async (tierId, data) => {
-  const existing = await souvenirDb.findPriceTierById(tierId);
-  if (!existing) throw new NotFoundError("Souvenir price tier not found");
-  const candidate = { ...existing, ...data };
-  const tiers = await souvenirDb.listPriceTiersForProduct(existing.productId);
-  if (existing.active) assertNoTierOverlap(candidate, tiers, tierId);
-  const update = { ...data };
-  if (data.unitPrice !== undefined) update.totalPrice = data.unitPrice;
-  return souvenirDb.updatePriceTier(tierId, update);
+export const setPriceTierActive = async (tierId, active) => {
+  const initial = await souvenirDb.findPriceTierById(tierId);
+  if (!initial) throw new NotFoundError("Souvenir price tier not found");
+  return prisma.$transaction(async (tx) => {
+    await lockSouvenirPriceTiers(tx, initial.productId);
+    const existing = await souvenirDb.findPriceTierById(tierId, tx);
+    if (!existing) throw new NotFoundError("Souvenir price tier not found");
+    if (active) {
+      if (existing.unitPrice == null) throw new ConflictError("Set a per-piece rate before activating this price tier");
+      const tiers = await souvenirDb.listPriceTiersForProduct(existing.productId, tx);
+      assertNoTierOverlap(existing, tiers, tierId);
+    } else if (existing.active && existing.unitPrice != null && existing.product.active) {
+      const activeCount = await souvenirDb.getActivePriceTierCount(existing.productId, tx);
+      if (activeCount <= 1) {
+        throw new ConflictError("A published souvenir must retain at least one active, priced quantity tier. Add or activate another tier, or unpublish the package first.");
+      }
+    }
+    return souvenirDb.updatePriceTier(tierId, { active }, tx);
+  });
 };
 
-export const setPriceTierActive = async (tierId, active) => {
-  const existing = await souvenirDb.findPriceTierById(tierId);
-  if (!existing) throw new NotFoundError("Souvenir price tier not found");
-  if (active) {
-    if (existing.unitPrice == null) throw new ConflictError("Set a per-piece rate before activating this price tier");
-    const tiers = await souvenirDb.listPriceTiersForProduct(existing.productId);
-    assertNoTierOverlap(existing, tiers, tierId);
-  }
-  return souvenirDb.updatePriceTier(tierId, { active });
+export const deletePriceTier = async (tierId) => {
+  const initial = await souvenirDb.findPriceTierById(tierId);
+  if (!initial) throw new NotFoundError("Souvenir price tier not found");
+  return prisma.$transaction(async (tx) => {
+    await lockSouvenirPriceTiers(tx, initial.productId);
+    const existing = await souvenirDb.findPriceTierById(tierId, tx);
+    if (!existing) throw new NotFoundError("Souvenir price tier not found");
+    const orderCount = await souvenirDb.countOrdersForPriceTier(tierId, tx);
+    if (orderCount > 0) {
+      throw new ConflictError(`This price tier is referenced by ${orderCount} historical order(s) and cannot be deleted. Deactivate it instead; order price snapshots remain preserved.`);
+    }
+    if (existing.active && existing.unitPrice != null && existing.product.active) {
+      const activeCount = await souvenirDb.getActivePriceTierCount(existing.productId, tx);
+      if (activeCount <= 1) {
+        throw new ConflictError("A published souvenir must retain at least one active, priced quantity tier. Add or activate another tier, or unpublish the package first.");
+      }
+    }
+    await souvenirDb.deletePriceTier(tierId, tx);
+    return { id: tierId, deleted: true };
+  });
 };
 
 export const createProductMedia = async (productId, data) => {
